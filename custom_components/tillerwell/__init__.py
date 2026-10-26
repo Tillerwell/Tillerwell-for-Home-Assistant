@@ -7,7 +7,6 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .api import HearthClient
-from .const import CONF_PASSWORD
 from .coordinator import HearthConfigEntry, HearthCoordinator
 
 PLATFORMS = [
@@ -22,11 +21,7 @@ PLATFORMS = [
 
 async def async_setup_entry(hass: HomeAssistant, entry: HearthConfigEntry) -> bool:
     """Set up a Hearth box from a config entry."""
-    client = HearthClient(
-        async_get_clientsession(hass),
-        entry.data[CONF_HOST],
-        entry.data.get(CONF_PASSWORD) or None,
-    )
+    client = HearthClient(async_get_clientsession(hass), entry.data[CONF_HOST])
     coordinator = HearthCoordinator(hass, entry, client)
     await coordinator.async_config_entry_first_refresh()
     entry.runtime_data = coordinator
@@ -42,5 +37,5 @@ async def async_unload_entry(hass: HomeAssistant, entry: HearthConfigEntry) -> b
 
 
 async def _async_reload_on_update(hass: HomeAssistant, entry: HearthConfigEntry) -> None:
-    """Reload when the address, password or options change."""
+    """Reload when the address or options change."""
     await hass.config_entries.async_reload(entry.entry_id)

@@ -11,12 +11,12 @@ from typing import Any
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN, UnitOfTemperature
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import ConfigEntryAuthFailed, HomeAssistantError
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util.unit_conversion import TemperatureConverter
 
-from .api import HearthAuthError, HearthClient, HearthError
+from .api import HearthClient, HearthError
 from .const import (
     CLOCK_SYNC_RETRY,
     CONF_EXTERNAL_TEMP_ENTITY,
@@ -81,8 +81,6 @@ class HearthCoordinator(DataUpdateCoordinator[HearthData]):
     async def _async_update_data(self) -> HearthData:
         try:
             status = await self.client.get_status()
-        except HearthAuthError as err:
-            raise ConfigEntryAuthFailed(str(err)) from err
         except HearthError as err:
             raise UpdateFailed(str(err)) from err
 
@@ -168,8 +166,6 @@ class HearthCoordinator(DataUpdateCoordinator[HearthData]):
         """Send a command, tell the user if the box refused it, and refresh."""
         try:
             accepted = await self.client.command(cmd, **params)
-        except HearthAuthError as err:
-            raise HomeAssistantError(f"The box refused the password: {err}") from err
         except HearthError as err:
             raise HomeAssistantError(f"Could not reach {self.config_entry.title}: {err}") from err
         if not accepted:

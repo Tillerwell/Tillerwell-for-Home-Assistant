@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import base64
 from typing import Any
 
 import aiohttp
@@ -20,7 +19,7 @@ class HearthConnectionError(HearthError):
 
 
 class HearthAuthError(HearthError):
-    """The box wants a web password and it was missing or wrong."""
+    """The box has a web password set, which this integration does not support."""
 
 
 class HearthRequestError(HearthError):
@@ -28,13 +27,11 @@ class HearthRequestError(HearthError):
 
 
 class HearthClient:
-    """Talks to one Hearth box. JSON over plain HTTP on port 80, HTTP Basic if a web password is set."""
+    """Talks to one Hearth box. JSON over plain HTTP on port 80."""
 
-    def __init__(self, session: aiohttp.ClientSession, host: str, password: str | None = None) -> None:
+    def __init__(self, session: aiohttp.ClientSession, host: str) -> None:
         self._session = session
         self._base = f"http://{host}"
-        token = base64.b64encode(f"admin:{password}".encode()).decode() if password else None
-        self._headers = {"Authorization": f"Basic {token}"} if token else None
         # The box's HTTP server is small; one request at a time keeps it happy.
         self._lock = asyncio.Lock()
 
@@ -50,11 +47,10 @@ class HearthClient:
                     method,
                     f"{self._base}{path}",
                     json=body,
-                    headers=self._headers,
                     timeout=REQUEST_TIMEOUT,
                 ) as resp:
                     if resp.status == 401:
-                        raise HearthAuthError("The box needs its web password")
+                        raise HearthAuthError("The box has a web password set, which is not supported")
                     if resp.status == 400:
                         try:
                             data = await resp.json(content_type=None)

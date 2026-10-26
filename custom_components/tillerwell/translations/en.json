@@ -4,45 +4,41 @@
     "step": {
       "user": {
         "title": "Add a Tillerwell Hearth",
-        "description": "Enter the address of your Hearth box: its name ending in .local (for example hearth-a1b2c3.local) or its IP address. The box must already be on your Wi-Fi.",
+        "description": "Home Assistant found these boxes on your network.",
         "data": {
-          "host": "Address",
-          "password": "Web password"
+          "device": "Box"
+        }
+      },
+      "manual": {
+        "title": "Add a Tillerwell Hearth",
+        "description": "No box was found automatically. Enter its address: its name ending in .local (for example hearth-a1b2c3.local) or its IP address. The box must already be on your Wi-Fi.",
+        "data": {
+          "host": "Address"
         },
         "data_description": {
-          "host": "The box's name is on its setup page and in your router's list of devices.",
-          "password": "Only if you set a web password on the box. Leave empty if you did not."
+          "host": "The box's name is on its setup page and in your router's list of devices."
         }
       },
       "discovery_confirm": {
         "title": "Add {name}?",
         "description": "Home Assistant found a Hearth box at {host}."
       },
-      "reauth_confirm": {
-        "title": "Web password needed",
-        "description": "{name} needs its web password. Enter the current one.",
-        "data": {
-          "password": "Web password"
-        }
-      },
       "reconfigure": {
         "title": "Change the box's address",
         "data": {
-          "host": "Address",
-          "password": "Web password"
+          "host": "Address"
         }
       }
     },
     "error": {
       "cannot_connect": "Could not reach a Hearth box at that address. Check it is powered and on the same network as Home Assistant.",
-      "invalid_auth": "The box wants its web password, and the one given was missing or wrong."
+      "web_password_set": "This box has a web password set, which is not supported. Remove the password on the box and try again."
     },
     "abort": {
       "already_configured": "This box is already set up.",
       "cannot_connect": "Found a box but could not talk to it.",
-      "auth_required_use_manual": "This box has a web password. Add it by address instead and enter the password.",
+      "web_password_set": "This box has a web password set, which is not supported. Remove the password on the box and try again.",
       "wrong_device": "That address belongs to a different box.",
-      "reauth_successful": "The password was updated.",
       "reconfigure_successful": "The box's address was updated."
     }
   },
@@ -54,6 +50,13 @@
         "data": {
           "external_temperature_entity": "Room temperature sensor"
         }
+      }
+    }
+  },
+  "selector": {
+    "device": {
+      "options": {
+        "manual": "Enter an address instead"
       }
     }
   },

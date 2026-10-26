@@ -6,7 +6,6 @@ from datetime import timedelta
 
 DOMAIN = "tillerwell"
 
-CONF_PASSWORD = "password"
 CONF_EXTERNAL_TEMP_ENTITY = "external_temperature_entity"
 
 MANUFACTURER = "Tillerwell"

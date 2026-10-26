@@ -88,6 +88,11 @@ def _enable_custom_integrations(enable_custom_integrations: None) -> None:
     """Let Home Assistant load custom_components in the repo."""
 
 
+@pytest.fixture(autouse=True)
+def _no_real_zeroconf(mock_async_zeroconf: None) -> None:
+    """The manifest depends on zeroconf; keep tests off the network."""
+
+
 @pytest.fixture
 def box(aioclient_mock: AiohttpClientMocker) -> AiohttpClientMocker:
     """A healthy box."""
@@ -107,5 +112,5 @@ def entry() -> MockConfigEntry:
         domain=DOMAIN,
         unique_id=INFO["device_name"],
         title="Hearth a1b2c3",
-        data={"host": HOST, "password": None},
+        data={"host": HOST},
     )

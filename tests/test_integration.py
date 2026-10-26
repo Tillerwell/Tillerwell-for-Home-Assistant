@@ -247,14 +247,13 @@ async def test_unreachable_box_retries_setup(
     assert entry.state is ConfigEntryState.SETUP_RETRY
 
 
-async def test_wrong_password_starts_reauth(
+async def test_box_with_web_password_retries_setup(
     hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, entry: MockConfigEntry
 ) -> None:
     aioclient_mock.get(f"{BASE}/api/status", status=401)
     entry.add_to_hass(hass)
     await hass.config_entries.async_setup(entry.entry_id)
-    assert entry.state is ConfigEntryState.SETUP_ERROR
-    assert any(flow["context"]["source"] == "reauth" for flow in hass.config_entries.flow.async_progress())
+    assert entry.state is ConfigEntryState.SETUP_RETRY
 
 
 def test_every_translation_key_exists() -> None:

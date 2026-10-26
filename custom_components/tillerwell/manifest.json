@@ -3,11 +3,12 @@
   "name": "Tillerwell Hearth",
   "codeowners": ["@Tillerwell"],
   "config_flow": true,
+  "dependencies": ["zeroconf"],
   "documentation": "https://github.com/Tillerwell/Tillerwell-for-Home-Assistant",
   "integration_type": "device",
   "iot_class": "local_polling",
   "issue_tracker": "https://github.com/Tillerwell/Tillerwell-for-Home-Assistant/issues",
   "requirements": [],
-  "version": "1.0.0",
+  "version": "1.0.1",
   "zeroconf": ["_hearth._tcp.local."]
 }

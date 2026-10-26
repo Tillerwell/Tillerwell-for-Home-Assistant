@@ -40,9 +40,9 @@ Needs Home Assistant 2025.1 or newer.
 
 First get the box onto your Wi-Fi (the Tillerwell app, or the box's own `Hearth-xxxxxx` setup network). Then:
 
-- **Discovery:** the box announces itself, so Home Assistant offers it under *Settings → Devices & services*. Click **Add**.
-- **By hand:** *Settings → Devices & services → Add integration → Tillerwell Hearth*, and enter the box's address: its name ending in `.local` (for example `hearth-a1b2c3.local`) or its IP address. Give the box a fixed IP address in your router if you can; if it changes, use *Reconfigure* on the integration to update it.
-- If you set a **web password** on the box, enter it here (the user name is always `admin`). Boxes with a password are not discovered; add them by address.
+- **Discovery:** the box announces itself, so Home Assistant offers it under *Settings → Devices & services*. Click **Add**. Choosing *Add integration → Tillerwell Hearth* also scans your network for a few seconds and lists any boxes it finds.
+- **By hand:** if nothing is found (or you pick *Enter an address instead*), enter the box's address: its name ending in `.local` (for example `hearth-a1b2c3.local`) or its IP address. Give the box a fixed IP address in your router if you can; if it changes, use *Reconfigure* on the integration to update it.
+- The integration does not support the box's **web password**. Leave it unset on the box.
 
 ## Thermostat
 
@@ -89,7 +89,7 @@ Timers only fire when the box knows the time and time zone. A boat with no inter
 
 ## Security
 
-The box speaks plain HTTP, and its optional web password is HTTP Basic, so anyone on the same Wi-Fi can read it. That is fine on a boat's own network; do not expose the box to the internet. This integration only talks to the box, never to a cloud.
+The box speaks plain HTTP, and anyone on the same Wi-Fi can talk to it. That is fine on a boat's own network; do not expose the box to the internet. This integration only talks to the box, never to a cloud.
 
 ## Already using MQTT?
 
