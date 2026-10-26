@@ -65,6 +65,7 @@ STATUS: dict[str, Any] = {
     "active_timer_id": None,
     "timer_note": "06:30 skipped: heater already running",
     "ext_voltage": None,
+    "supply_voltage": 12.6,
     "ext_flame_temp_c": None,
 }
 

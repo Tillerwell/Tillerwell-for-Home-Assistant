@@ -109,7 +109,7 @@
       "prevent_freezing_note": {"name": "Prevent freezing note"},
       "rssi": {"name": "Wi-Fi signal"},
       "timers": {"name": "Timers"},
-      "ext_voltage": {"name": "Supply voltage"},
+      "supply_voltage": {"name": "Battery voltage"},
       "ext_flame_temp": {"name": "Flame temperature"},
       "ext_liquid_temp": {"name": "Liquid temperature"},
       "ext_overheat_temp": {"name": "Overheat sensor temperature"},

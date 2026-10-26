@@ -55,6 +55,12 @@ def _next_timer(data: HearthData) -> datetime | None:
     return datetime.fromtimestamp(nxt["start_epoch"], tz=UTC)
 
 
+def _supply_voltage(data: HearthData) -> Any:
+    """The box's own reading of the supply, else the heater's (extended telemetry) on a box without the divider."""
+    value = data.status.get("supply_voltage")
+    return value if value is not None else data.status.get("ext_voltage")
+
+
 def _temperature(key: str, **kwargs: Any) -> HearthSensorDescription:
     return HearthSensorDescription(
         key=key,
@@ -128,13 +134,13 @@ SENSORS: tuple[HearthSensorDescription, ...] = (
     ),
     # Extended telemetry: only filled while "Extended telemetry probing" is on (experimental).
     HearthSensorDescription(
-        key="ext_voltage",
-        translation_key="ext_voltage",
+        key="supply_voltage",
+        translation_key="supply_voltage",
         device_class=SensorDeviceClass.VOLTAGE,
         native_unit_of_measurement=UnitOfElectricPotential.VOLT,
         state_class=SensorStateClass.MEASUREMENT,
-        entity_registry_enabled_default=False,
-        value_fn=_status("ext_voltage"),
+        suggested_display_precision=1,
+        value_fn=_supply_voltage,
     ),
     _temperature("ext_flame_temp", field="ext_flame_temp_c", entity_registry_enabled_default=False),
     _temperature("ext_liquid_temp", field="ext_liquid_temp_c", entity_registry_enabled_default=False),

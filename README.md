@@ -14,13 +14,14 @@ Control an Autoterm diesel heater from Home Assistant through a **Tillerwell Hea
 | **Heater** (switch) | On starts a timed preheat of the saved duration, off stops the heater properly |
 | **Start preheat / Start thermostat / Ventilate / Stop** (buttons) | One-shot commands |
 | **State, Coolant temperature, Controller temperature, Thermostat temperature, Run time** | Live status |
+| **Battery voltage** | The supply voltage the heater reports, always on (exact value from extended telemetry when that is switched on) |
 | **Fault, Last fault** and a **Fault** problem sensor | Heater fault names as reported by the heater |
 | **Next timer, Last timer event, Timers** | The schedule stored on the box |
 | **Prevent freezing** (switch + target) | Starts the heater at the frost floor even if you pressed Stop |
 | **Preheat duration, Preheat coolant limit, Start/Stop hysteresis** (numbers) | The box's saved settings |
 | **Bypass, Use external temperature** (switches) | Bypass makes the box relay only and never send a command |
 | Diagnostics | Heater and controller link, stale data, Wi-Fi signal, clock set, running without controller |
-| Extended telemetry (off by default) | Supply voltage, flame, board and overheat temperatures, fuel pump, output. Enable the *Extended telemetry probing* switch on the box first (experimental) |
+| Extended telemetry (off by default) | Flame, board and overheat temperatures, fuel pump, output. Enable the *Extended telemetry probing* switch on the box first (experimental) |
 
 Everything is polled from the box every 5 seconds.
 
