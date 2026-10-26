@@ -27,7 +27,7 @@ from .api import HearthAuthError, HearthClient, HearthError
 from .const import CONF_EXTERNAL_TEMP_ENTITY, DOMAIN
 from .coordinator import HearthConfigEntry
 
-SERVICE_TYPE = "_hearth._tcp.local."
+SERVICE_TYPE = "_hearth-ha._tcp.local."
 SCAN_SECONDS = 3
 CONF_DEVICE = "device"
 MANUAL = "manual"
@@ -139,7 +139,7 @@ class TillerwellConfigFlow(ConfigFlow, domain=DOMAIN):
         return self.async_create_entry(title=title_for(device_name), data={CONF_HOST: host})
 
     async def async_step_zeroconf(self, discovery_info: ZeroconfServiceInfo) -> ConfigFlowResult:
-        """A box announced itself as _hearth._tcp."""
+        """A box announced itself as _hearth-ha._tcp (Home Assistant switched on)."""
         host = discovery_info.host
         try:
             info = await self._async_fetch_info(host)
