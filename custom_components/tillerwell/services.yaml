@@ -1,0 +1,28 @@
+set_timers:
+  target:
+    entity:
+      integration: tillerwell
+      domain: climate
+  fields:
+    timers:
+      required: true
+      example: >-
+        [{"mode": "preheat", "start": "06:30", "duration_min": 60, "days": ["mon", "tue", "wed", "thu", "fri"]}]
+      selector:
+        object:
+
+set_external_temperature:
+  target:
+    entity:
+      integration: tillerwell
+      domain: climate
+  fields:
+    temperature:
+      required: true
+      example: 18.5
+      selector:
+        number:
+          min: -30
+          max: 60
+          step: 0.1
+          unit_of_measurement: "°C"

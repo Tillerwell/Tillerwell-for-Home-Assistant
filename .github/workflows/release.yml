@@ -1,0 +1,24 @@
+name: Release
+
+# Publishing a release in the GitHub UI (or `gh release create`) needs nothing else for HACS.
+# This only checks that the tag matches the version in manifest.json.
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  check-version:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Tag must equal manifest version
+        run: |
+          version=$(python3 -c "import json;print(json.load(open('custom_components/tillerwell/manifest.json'))['version'])")
+          tag="${GITHUB_REF_NAME#v}"
+          if [ "$version" != "$tag" ]; then
+            echo "Tag $GITHUB_REF_NAME does not match manifest version $version" >&2
+            exit 1
+          fi

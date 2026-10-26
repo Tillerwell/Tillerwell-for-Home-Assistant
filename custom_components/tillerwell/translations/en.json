@@ -1,0 +1,150 @@
+{
+  "config": {
+    "flow_title": "{name}",
+    "step": {
+      "user": {
+        "title": "Add a Tillerwell Hearth",
+        "description": "Enter the address of your Hearth box: its name ending in .local (for example hearth-a1b2c3.local) or its IP address. The box must already be on your Wi-Fi.",
+        "data": {
+          "host": "Address",
+          "password": "Web password"
+        },
+        "data_description": {
+          "host": "The box's name is on its setup page and in your router's list of devices.",
+          "password": "Only if you set a web password on the box. Leave empty if you did not."
+        }
+      },
+      "discovery_confirm": {
+        "title": "Add {name}?",
+        "description": "Home Assistant found a Hearth box at {host}."
+      },
+      "reauth_confirm": {
+        "title": "Web password needed",
+        "description": "{name} needs its web password. Enter the current one.",
+        "data": {
+          "password": "Web password"
+        }
+      },
+      "reconfigure": {
+        "title": "Change the box's address",
+        "data": {
+          "host": "Address",
+          "password": "Web password"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Could not reach a Hearth box at that address. Check it is powered and on the same network as Home Assistant.",
+      "invalid_auth": "The box wants its web password, and the one given was missing or wrong."
+    },
+    "abort": {
+      "already_configured": "This box is already set up.",
+      "cannot_connect": "Found a box but could not talk to it.",
+      "auth_required_use_manual": "This box has a web password. Add it by address instead and enter the password.",
+      "wrong_device": "That address belongs to a different box.",
+      "reauth_successful": "The password was updated.",
+      "reconfigure_successful": "The box's address was updated."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Tillerwell Hearth options",
+        "description": "Pick a Home Assistant temperature sensor (for example one in the cabin) and it is sent to the box every 30 seconds. The box's thermostat uses it instead of the controller's reading while \"Use external temperature\" is on.",
+        "data": {
+          "external_temperature_entity": "Room temperature sensor"
+        }
+      }
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "fault_active": {"name": "Fault"},
+      "burner_active": {"name": "Burner"},
+      "heater_seen": {"name": "Heater link"},
+      "controller_seen": {"name": "Controller link"},
+      "stale": {"name": "Heater data stale"},
+      "standalone": {"name": "Running without controller"},
+      "clock_ok": {"name": "Clock set"},
+      "external_temp_active": {"name": "Using external temperature"},
+      "extended_active": {"name": "Extended telemetry"},
+      "ext_glow_plug": {"name": "Glow plug"}
+    },
+    "button": {
+      "start_preheat": {"name": "Start preheat"},
+      "start_thermostat": {"name": "Start thermostat"},
+      "start_pump": {"name": "Ventilate (pump only)"},
+      "stop": {"name": "Stop"}
+    },
+    "number": {
+      "preheat_minutes": {"name": "Preheat duration"},
+      "preheat_temp": {"name": "Preheat coolant limit"},
+      "prevent_freezing_target": {"name": "Prevent freezing target"},
+      "hyst_min": {"name": "Start hysteresis"},
+      "hyst_max": {"name": "Stop hysteresis"}
+    },
+    "sensor": {
+      "state": {
+        "name": "State",
+        "state": {
+          "idle": "Idle",
+          "running": "Running",
+          "late-run": "Running (late)",
+          "cooldown": "Cooling down",
+          "final-shutdown": "Shutting down"
+        }
+      },
+      "coolant_temp": {"name": "Coolant temperature"},
+      "cabin_temp": {"name": "Controller temperature"},
+      "effective_temp": {"name": "Thermostat temperature"},
+      "elapsed_min": {"name": "Run time"},
+      "fault_name": {"name": "Fault"},
+      "last_fault_name": {"name": "Last fault"},
+      "next_timer": {"name": "Next timer"},
+      "timer_note": {"name": "Last timer event"},
+      "auto_note": {"name": "Thermostat note"},
+      "prevent_freezing_note": {"name": "Prevent freezing note"},
+      "rssi": {"name": "Wi-Fi signal"},
+      "timers": {"name": "Timers"},
+      "ext_voltage": {"name": "Supply voltage"},
+      "ext_flame_temp": {"name": "Flame temperature"},
+      "ext_liquid_temp": {"name": "Liquid temperature"},
+      "ext_overheat_temp": {"name": "Overheat sensor temperature"},
+      "ext_board_temp": {"name": "Board temperature"},
+      "ext_fuel_pump_hz": {"name": "Fuel pump frequency"},
+      "ext_output_pct": {"name": "Heater output"},
+      "ext_fan_current_ma": {"name": "Fan current"},
+      "ext_mode_name": {"name": "Mode of operation"},
+      "ext_fault_name": {"name": "Fault (extended)"}
+    },
+    "switch": {
+      "heater": {"name": "Heater"},
+      "prevent_freezing": {"name": "Prevent freezing"},
+      "use_external_temp": {"name": "Use external temperature"},
+      "bypass_mode": {"name": "Bypass"},
+      "debug_mode": {"name": "Extended telemetry probing"}
+    }
+  },
+  "services": {
+    "set_timers": {
+      "name": "Set timers",
+      "description": "Replaces the whole timer list stored on the box. Send an empty list to clear it. The box checks every rule and says why if it refuses.",
+      "fields": {
+        "timers": {
+          "name": "Timers",
+          "description": "A list of timers. Each has mode (preheat or thermostat), start (time of day), duration_min (20 to 480), and either days (mon to sun) or a one-off date. Thermostat timers also take low_c and high_c. Optional: id, enabled."
+        }
+      }
+    },
+    "set_external_temperature": {
+      "name": "Set external temperature",
+      "description": "Tells the box the room temperature. It is only trusted for 90 seconds, so repeat it at least that often (or pick a sensor in the integration's options instead).",
+      "fields": {
+        "temperature": {
+          "name": "Temperature",
+          "description": "Room temperature in °C."
+        }
+      }
+    }
+  }
+}

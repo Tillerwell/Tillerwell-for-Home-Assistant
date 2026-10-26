@@ -1,0 +1,46 @@
+{
+  "entity": {
+    "binary_sensor": {
+      "clock_ok": {"default": "mdi:clock-alert-outline", "state": {"on": "mdi:clock-check-outline"}},
+      "controller_seen": {"default": "mdi:remote-off", "state": {"on": "mdi:remote"}},
+      "extended_active": {"default": "mdi:radar"},
+      "heater_seen": {"default": "mdi:radiator-off", "state": {"on": "mdi:radiator"}},
+      "standalone": {"default": "mdi:link-off"}
+    },
+    "button": {
+      "start_preheat": {"default": "mdi:fire"},
+      "start_pump": {"default": "mdi:fan"},
+      "start_thermostat": {"default": "mdi:thermostat"},
+      "stop": {"default": "mdi:stop-circle-outline"}
+    },
+    "number": {
+      "hyst_max": {"default": "mdi:thermometer-chevron-up"},
+      "hyst_min": {"default": "mdi:thermometer-chevron-down"},
+      "preheat_minutes": {"default": "mdi:timer-cog-outline"},
+      "preheat_temp": {"default": "mdi:thermometer-high"},
+      "prevent_freezing_target": {"default": "mdi:thermometer-low"}
+    },
+    "sensor": {
+      "auto_note": {"default": "mdi:message-text-outline"},
+      "elapsed_min": {"default": "mdi:timer-outline"},
+      "fault_name": {"default": "mdi:alert-circle-outline"},
+      "last_fault_name": {"default": "mdi:alert-circle-outline"},
+      "next_timer": {"default": "mdi:calendar-clock"},
+      "prevent_freezing_note": {"default": "mdi:message-text-outline"},
+      "state": {"default": "mdi:radiator"},
+      "timer_note": {"default": "mdi:timer-cog-outline"},
+      "timers": {"default": "mdi:calendar-multiple"}
+    },
+    "switch": {
+      "bypass_mode": {"default": "mdi:transit-connection-variant"},
+      "debug_mode": {"default": "mdi:bug-outline"},
+      "heater": {"default": "mdi:radiator", "state": {"on": "mdi:radiator"}},
+      "prevent_freezing": {"default": "mdi:snowflake-alert"},
+      "use_external_temp": {"default": "mdi:thermometer-lines"}
+    }
+  },
+  "services": {
+    "set_external_temperature": {"service": "mdi:thermometer-plus"},
+    "set_timers": {"service": "mdi:calendar-edit"}
+  }
+}
