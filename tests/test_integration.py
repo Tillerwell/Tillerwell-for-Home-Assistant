@@ -222,6 +222,22 @@ async def test_fuel_estimate(hass: HomeAssistant, box: AiohttpClientMocker, entr
     assert sent(box) == [{"cmd": "fuel_price", "value": 1.62}, {"cmd": "fuel_factor", "value": 1.1}]
 
 
+async def test_tank(hass: HomeAssistant, box: AiohttpClientMocker, entry: MockConfigEntry) -> None:
+    await setup(hass, entry)
+    assert hass.states.get("sensor.hearth_a1b2c3_tank_level").state == "76.6"
+    in_tank = hass.states.get("number.hearth_a1b2c3_fuel_in_tank")
+    assert in_tank.state == "61.25"
+    assert in_tank.attributes["max"] == 80
+    assert hass.states.get("number.hearth_a1b2c3_tank_size").state == "80"
+    await hass.services.async_call(
+        NUMBER, SERVICE_SET_VALUE, {ATTR_ENTITY_ID: "number.hearth_a1b2c3_fuel_in_tank", ATTR_VALUE: 40}, blocking=True
+    )
+    await hass.services.async_call(
+        BUTTON, SERVICE_PRESS, {ATTR_ENTITY_ID: "button.hearth_a1b2c3_tank_filled_to_the_top"}, blocking=True
+    )
+    assert sent(box) == [{"cmd": "tank_level", "value": 40}, {"cmd": "tank_filled"}]
+
+
 def test_fuel_rate_sends_all_four() -> None:
     params = _rates_with("high")(0.7, STATUS)
     assert params == {"starting": 0.15, "low": 0.15, "middle": 0.35, "high": 0.7}
@@ -230,13 +246,14 @@ def test_fuel_rate_sends_all_four() -> None:
 async def test_older_firmware_without_fuel(
     hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, entry: MockConfigEntry
 ) -> None:
-    status = {k: v for k, v in STATUS.items() if not k.startswith(("fuel_", "power_level", "mode_name"))}
+    status = {k: v for k, v in STATUS.items() if not k.startswith(("fuel_", "power_level", "mode_name", "tank_"))}
     aioclient_mock.get(f"{BASE}/api/info", json=INFO)
     aioclient_mock.get(f"{BASE}/api/status", json=status)
     aioclient_mock.get(f"{BASE}/api/timers", json=[])
     await setup(hass, entry)
     assert hass.states.get("sensor.hearth_a1b2c3_fuel_used_estimated").state == "unknown"
     assert hass.states.get("number.hearth_a1b2c3_fuel_price").state == "unavailable"
+    assert hass.states.get("number.hearth_a1b2c3_fuel_in_tank").state == "unavailable"
 
 
 async def test_refused_command_is_an_error(

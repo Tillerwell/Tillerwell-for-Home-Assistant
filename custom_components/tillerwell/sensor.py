@@ -221,6 +221,14 @@ SENSORS: tuple[HearthSensorDescription, ...] = (
         state_class=SensorStateClass.TOTAL_INCREASING,
         value_fn=_status("starts_total"),
     ),
+    HearthSensorDescription(
+        key="tank_pct",
+        translation_key="tank_pct",
+        native_unit_of_measurement=PERCENTAGE,
+        state_class=SensorStateClass.MEASUREMENT,
+        suggested_display_precision=0,
+        value_fn=_status("tank_pct"),
+    ),
     *(
         HearthSensorDescription(
             key=f"hours_{level}",

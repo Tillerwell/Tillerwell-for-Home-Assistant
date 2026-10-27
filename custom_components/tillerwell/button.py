@@ -45,6 +45,10 @@ async def _stop(coordinator: HearthCoordinator) -> None:
     await coordinator.async_stop()
 
 
+async def _tank_filled(coordinator: HearthCoordinator) -> None:
+    await coordinator.async_command("tank_filled")
+
+
 async def _reboot(coordinator: HearthCoordinator) -> None:
     try:
         await coordinator.client.reboot()
@@ -57,6 +61,8 @@ BUTTONS: tuple[HearthButtonDescription, ...] = (
     HearthButtonDescription(key="start_thermostat", translation_key="start_thermostat", press_fn=_start_thermostat),
     HearthButtonDescription(key="start_pump", translation_key="start_pump", press_fn=_start_pump),
     HearthButtonDescription(key="stop", translation_key="stop", press_fn=_stop),
+    # Sets the fuel in the tank to its size; the box refuses it until the tank size is set.
+    HearthButtonDescription(key="tank_filled", translation_key="tank_filled", press_fn=_tank_filled),
     HearthButtonDescription(
         key="reboot",
         device_class=ButtonDeviceClass.RESTART,

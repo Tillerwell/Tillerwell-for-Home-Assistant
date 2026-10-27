@@ -77,7 +77,8 @@
       "start_preheat": {"name": "Start preheat"},
       "start_thermostat": {"name": "Start thermostat"},
       "start_pump": {"name": "Ventilate (pump only)"},
-      "stop": {"name": "Stop"}
+      "stop": {"name": "Stop"},
+      "tank_filled": {"name": "Tank filled to the top"}
     },
     "number": {
       "preheat_minutes": {"name": "Preheat duration"},
@@ -90,15 +91,17 @@
       "fuel_rate_starting": {"name": "Fuel rate while starting"},
       "fuel_rate_low": {"name": "Fuel rate at low"},
       "fuel_rate_middle": {"name": "Fuel rate at middle"},
-      "fuel_rate_high": {"name": "Fuel rate at high"}
+      "fuel_rate_high": {"name": "Fuel rate at high"},
+      "tank_capacity": {"name": "Tank size"},
+      "tank_litres": {"name": "Fuel in tank"}
     },
     "sensor": {
       "state": {
         "name": "State",
         "state": {
           "idle": "Idle",
-          "running": "Running",
-          "late-run": "Running (late)",
+          "running": "Starting",
+          "late-run": "Heating",
           "cooldown": "Cooling down",
           "final-shutdown": "Shutting down"
         }
@@ -144,7 +147,8 @@
       "bad_crc_controller": {"name": "Controller line errors"},
       "inject_fail": {"name": "Unanswered commands"},
       "last_command": {"name": "Last command"},
-      "uptime": {"name": "Box uptime"}
+      "uptime": {"name": "Box uptime"},
+      "tank_pct": {"name": "Tank level"}
     },
     "switch": {
       "heater": {"name": "Heater"},

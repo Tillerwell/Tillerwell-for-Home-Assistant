@@ -83,6 +83,10 @@ STATUS: dict[str, Any] = {
     "hours_high": 25.0,
     "starts_total": 57,
     "last_command": "thermostat",
+    "tank_capacity": 80,
+    "tank_litres": 61.25,
+    "tank_pct": 76.6,
+    "tank_set_epoch": 1793000000,
 }
 
 TIMERS: list[dict[str, Any]] = [

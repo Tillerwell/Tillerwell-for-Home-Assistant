@@ -12,7 +12,7 @@ from homeassistant.components.number import (
     NumberEntityDescription,
     NumberMode,
 )
-from homeassistant.const import EntityCategory, UnitOfTemperature, UnitOfTime, UnitOfVolumeFlowRate
+from homeassistant.const import EntityCategory, UnitOfTemperature, UnitOfTime, UnitOfVolume, UnitOfVolumeFlowRate
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
@@ -24,6 +24,7 @@ from .const import (
     MAX_FUEL_RATE,
     MAX_PREHEAT_COOLANT,
     MAX_PREHEAT_MINUTES,
+    MAX_TANK_LITRES,
     MIN_FUEL_FACTOR,
     MIN_PREHEAT_COOLANT,
     MIN_PREHEAT_MINUTES,
@@ -46,6 +47,8 @@ class HearthNumberDescription(NumberEntityDescription):
     value_fn: Callable[[dict[str, Any]], Any] | None = None
     # Shown per litre in Home Assistant's own currency.
     per_litre_price: bool = False
+    # Can't be set above the tank's size, once that is known.
+    up_to_tank: bool = False
 
 
 def _rate(level: str) -> Callable[[dict[str, Any]], Any]:
@@ -152,6 +155,33 @@ NUMBERS: tuple[HearthNumberDescription, ...] = (
         cmd="fuel_factor",
         params_fn=lambda value, _status: {"value": value},
     ),
+    HearthNumberDescription(
+        key="tank_capacity",
+        translation_key="tank_capacity",
+        device_class=NumberDeviceClass.VOLUME_STORAGE,
+        native_unit_of_measurement=UnitOfVolume.LITERS,
+        native_min_value=1,
+        native_max_value=MAX_TANK_LITRES,
+        native_step=1,
+        entity_category=EntityCategory.CONFIG,
+        field="tank_capacity",
+        cmd="tank_capacity",
+        params_fn=lambda value, _status: {"value": value},
+    ),
+    # Shows the estimate of what is left; setting it tells the box what is really in the tank now.
+    HearthNumberDescription(
+        key="tank_litres",
+        translation_key="tank_litres",
+        device_class=NumberDeviceClass.VOLUME_STORAGE,
+        native_unit_of_measurement=UnitOfVolume.LITERS,
+        native_min_value=0,
+        native_max_value=MAX_TANK_LITRES,
+        native_step=0.1,
+        field="tank_litres",
+        cmd="tank_level",
+        up_to_tank=True,
+        params_fn=lambda value, _status: {"value": value},
+    ),
     *(
         HearthNumberDescription(
             key=f"fuel_rate_{level}",
@@ -200,8 +230,17 @@ class HearthNumber(HearthEntity, NumberEntity):
 
     @property
     def available(self) -> bool:
-        """Unavailable on firmware that does not report this setting."""
+        """Unavailable on firmware that does not report this setting (fuel in tank: until it is first set)."""
+        if self.entity_description.up_to_tank:
+            return super().available and "tank_litres" in self.status
         return super().available and self.native_value is not None
+
+    @property
+    def native_max_value(self) -> float:
+        """The tank's size for the fuel in it, once known."""
+        if self.entity_description.up_to_tank and self.status.get("tank_capacity"):
+            return float(self.status["tank_capacity"])
+        return super().native_max_value
 
     @property
     def native_unit_of_measurement(self) -> str | None:

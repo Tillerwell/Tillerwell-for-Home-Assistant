@@ -11,7 +11,8 @@
       "start_preheat": {"default": "mdi:fire"},
       "start_pump": {"default": "mdi:fan"},
       "start_thermostat": {"default": "mdi:thermostat"},
-      "stop": {"default": "mdi:stop-circle-outline"}
+      "stop": {"default": "mdi:stop-circle-outline"},
+      "tank_filled": {"default": "mdi:fuel"}
     },
     "number": {
       "hyst_max": {"default": "mdi:thermometer-chevron-up"},
@@ -24,7 +25,9 @@
       "fuel_rate_starting": {"default": "mdi:gauge-low"},
       "fuel_rate_low": {"default": "mdi:gauge-low"},
       "fuel_rate_middle": {"default": "mdi:gauge"},
-      "fuel_rate_high": {"default": "mdi:gauge-full"}
+      "fuel_rate_high": {"default": "mdi:gauge-full"},
+      "tank_capacity": {"default": "mdi:barrel-outline"},
+      "tank_litres": {"default": "mdi:barrel"}
     },
     "sensor": {
       "auto_note": {"default": "mdi:message-text-outline"},
@@ -52,7 +55,8 @@
       "bad_crc_controller": {"default": "mdi:alert-outline"},
       "inject_fail": {"default": "mdi:message-alert-outline"},
       "last_command": {"default": "mdi:console"},
-      "uptime": {"default": "mdi:timer-outline"}
+      "uptime": {"default": "mdi:timer-outline"},
+      "tank_pct": {"default": "mdi:gauge"}
     },
     "switch": {
       "bypass_mode": {"default": "mdi:transit-connection-variant"},

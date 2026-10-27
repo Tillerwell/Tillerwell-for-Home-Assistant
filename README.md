@@ -16,6 +16,7 @@ Control an Autoterm diesel heater from Home Assistant through a **Tillerwell Hea
 | **State, Coolant temperature, Controller temperature, Thermostat temperature, Run time** | Live status |
 | **Battery voltage** | The supply voltage the heater reports, always on (exact value from extended telemetry when that is switched on) |
 | **Fuel used, Fuel cost** (total and today), **Fuel rate** | Estimated diesel use, see below. Needs RoamOS 1.0011 or later on the box |
+| **Fuel in tank** (number), **Tank level** (%), **Tank size** (number), **Tank filled to the top** (button) | What's left in the tank: the level you set, less the estimate since. Needs RoamOS 1.0012 or later |
 | **Power level, Heater mode, Burner hours, Starts** | What the heater says it is doing, and how much it has run (hours at low, middle and high are diagnostics) |
 | **Fuel price, Fuel calibration factor** (numbers) | Price per litre in your Home Assistant currency, and the estimate's correction. The four fuel rates are there too, disabled by default |
 | **Fault, Last fault** and a **Fault** problem sensor | Heater fault names as reported by the heater |
