@@ -18,7 +18,13 @@
       "hyst_min": {"default": "mdi:thermometer-chevron-down"},
       "preheat_minutes": {"default": "mdi:timer-cog-outline"},
       "preheat_temp": {"default": "mdi:thermometer-high"},
-      "prevent_freezing_target": {"default": "mdi:thermometer-low"}
+      "prevent_freezing_target": {"default": "mdi:thermometer-low"},
+      "fuel_price": {"default": "mdi:cash"},
+      "fuel_factor": {"default": "mdi:tune-variant"},
+      "fuel_rate_starting": {"default": "mdi:gauge-low"},
+      "fuel_rate_low": {"default": "mdi:gauge-low"},
+      "fuel_rate_middle": {"default": "mdi:gauge"},
+      "fuel_rate_high": {"default": "mdi:gauge-full"}
     },
     "sensor": {
       "auto_note": {"default": "mdi:message-text-outline"},
@@ -29,7 +35,24 @@
       "prevent_freezing_note": {"default": "mdi:message-text-outline"},
       "state": {"default": "mdi:radiator"},
       "timer_note": {"default": "mdi:timer-cog-outline"},
-      "timers": {"default": "mdi:calendar-multiple"}
+      "timers": {"default": "mdi:calendar-multiple"},
+      "power_level": {"default": "mdi:fire", "state": {"off": "mdi:fire-off"}},
+      "mode_name": {"default": "mdi:information-outline"},
+      "fuel_rate": {"default": "mdi:gauge"},
+      "fuel_used": {"default": "mdi:gas-station"},
+      "fuel_used_today": {"default": "mdi:gas-station"},
+      "fuel_cost": {"default": "mdi:cash"},
+      "fuel_cost_today": {"default": "mdi:cash"},
+      "burn_hours": {"default": "mdi:fire-circle"},
+      "starts": {"default": "mdi:counter"},
+      "hours_low": {"default": "mdi:speedometer-slow"},
+      "hours_middle": {"default": "mdi:speedometer-medium"},
+      "hours_high": {"default": "mdi:speedometer"},
+      "bad_crc_heater": {"default": "mdi:alert-outline"},
+      "bad_crc_controller": {"default": "mdi:alert-outline"},
+      "inject_fail": {"default": "mdi:message-alert-outline"},
+      "last_command": {"default": "mdi:console"},
+      "uptime": {"default": "mdi:timer-outline"}
     },
     "switch": {
       "bypass_mode": {"default": "mdi:transit-connection-variant"},

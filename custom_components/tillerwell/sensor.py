@@ -22,11 +22,13 @@ from homeassistant.const import (
     UnitOfFrequency,
     UnitOfTemperature,
     UnitOfTime,
+    UnitOfVolume,
+    UnitOfVolumeFlowRate,
 )
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
-from .const import STATES
+from .const import POWER_LEVELS, STATES
 from .coordinator import HearthConfigEntry, HearthCoordinator, HearthData
 from .entity import HearthEntity
 
@@ -38,6 +40,8 @@ class HearthSensorDescription(SensorEntityDescription):
     """A sensor read out of the status or info document."""
 
     value_fn: Callable[[HearthData], Any]
+    # Money: shown in Home Assistant's own currency, which is what the box's fuel price is entered in.
+    currency: bool = False
 
 
 def _status(key: str) -> Callable[[HearthData], Any]:
@@ -132,6 +136,118 @@ SENSORS: tuple[HearthSensorDescription, ...] = (
         entity_category=EntityCategory.DIAGNOSTIC,
         value_fn=lambda data: data.info.get("rssi"),
     ),
+    # What the heater is doing, from its status frame (any firmware), and the box's fuel estimate
+    # (RoamOS 1.0011 on): time at each power level x a litres-per-hour rate x the calibration factor.
+    HearthSensorDescription(
+        key="power_level",
+        translation_key="power_level",
+        device_class=SensorDeviceClass.ENUM,
+        options=POWER_LEVELS,
+        value_fn=_status("power_level"),
+    ),
+    HearthSensorDescription(key="mode_name", translation_key="mode_name", value_fn=_status("mode_name")),
+    HearthSensorDescription(
+        key="fuel_rate",
+        translation_key="fuel_rate",
+        device_class=SensorDeviceClass.VOLUME_FLOW_RATE,
+        native_unit_of_measurement=UnitOfVolumeFlowRate.LITERS_PER_HOUR,
+        state_class=SensorStateClass.MEASUREMENT,
+        suggested_display_precision=2,
+        value_fn=_status("fuel_rate_lph"),
+    ),
+    HearthSensorDescription(
+        key="fuel_used",
+        translation_key="fuel_used",
+        device_class=SensorDeviceClass.VOLUME,
+        native_unit_of_measurement=UnitOfVolume.LITERS,
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        suggested_display_precision=2,
+        value_fn=_status("fuel_litres_total"),
+    ),
+    HearthSensorDescription(
+        key="fuel_used_today",
+        translation_key="fuel_used_today",
+        device_class=SensorDeviceClass.VOLUME,
+        native_unit_of_measurement=UnitOfVolume.LITERS,
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        suggested_display_precision=2,
+        value_fn=_status("fuel_litres_today"),
+    ),
+    HearthSensorDescription(
+        key="fuel_cost",
+        translation_key="fuel_cost",
+        device_class=SensorDeviceClass.MONETARY,
+        state_class=SensorStateClass.TOTAL,
+        suggested_display_precision=2,
+        currency=True,
+        value_fn=_status("fuel_cost_total"),
+    ),
+    HearthSensorDescription(
+        key="fuel_cost_today",
+        translation_key="fuel_cost_today",
+        device_class=SensorDeviceClass.MONETARY,
+        state_class=SensorStateClass.TOTAL,
+        suggested_display_precision=2,
+        currency=True,
+        value_fn=_status("fuel_cost_today"),
+    ),
+    HearthSensorDescription(
+        key="burn_hours",
+        translation_key="burn_hours",
+        device_class=SensorDeviceClass.DURATION,
+        native_unit_of_measurement=UnitOfTime.HOURS,
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        suggested_display_precision=1,
+        value_fn=_status("burn_hours_total"),
+    ),
+    HearthSensorDescription(
+        key="starts",
+        translation_key="starts",
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        value_fn=_status("starts_total"),
+    ),
+    *(
+        HearthSensorDescription(
+            key=f"hours_{level}",
+            translation_key=f"hours_{level}",
+            device_class=SensorDeviceClass.DURATION,
+            native_unit_of_measurement=UnitOfTime.HOURS,
+            state_class=SensorStateClass.TOTAL_INCREASING,
+            suggested_display_precision=1,
+            entity_category=EntityCategory.DIAGNOSTIC,
+            value_fn=_status(f"hours_{level}"),
+        )
+        for level in ("low", "middle", "high")
+    ),
+    # Link health
+    *(
+        HearthSensorDescription(
+            key=key,
+            translation_key=key,
+            state_class=SensorStateClass.TOTAL_INCREASING,
+            entity_category=EntityCategory.DIAGNOSTIC,
+            entity_registry_enabled_default=False,
+            value_fn=_status(key),
+        )
+        for key in ("bad_crc_heater", "bad_crc_controller", "inject_fail")
+    ),
+    HearthSensorDescription(
+        key="last_command",
+        translation_key="last_command",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        value_fn=_status("last_command"),
+    ),
+    HearthSensorDescription(
+        key="uptime",
+        translation_key="uptime",
+        device_class=SensorDeviceClass.DURATION,
+        native_unit_of_measurement=UnitOfTime.SECONDS,
+        suggested_unit_of_measurement=UnitOfTime.HOURS,
+        state_class=SensorStateClass.MEASUREMENT,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
+        value_fn=_status("uptime_s"),
+    ),
     # Extended telemetry: only filled while "Extended telemetry probing" is on (experimental).
     HearthSensorDescription(
         key="supply_voltage",
@@ -213,7 +329,16 @@ class HearthSensor(HearthEntity, SensorEntity):
         value = self.entity_description.value_fn(self.coordinator.data)
         if self.entity_description.key == "state" and value not in STATES:
             return None
+        if self.entity_description.key == "power_level" and value not in POWER_LEVELS:
+            return None
         return value
+
+    @property
+    def native_unit_of_measurement(self) -> str | None:
+        """The description's unit, or Home Assistant's currency for money."""
+        if self.entity_description.currency:
+            return self.hass.config.currency
+        return super().native_unit_of_measurement
 
 
 class HearthTimersSensor(HearthEntity, SensorEntity):

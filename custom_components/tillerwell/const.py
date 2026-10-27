@@ -29,6 +29,9 @@ STATE_COOLDOWN = "cooldown"
 STATE_FINAL_SHUTDOWN = "final-shutdown"
 STATES = [STATE_IDLE, STATE_RUNNING, STATE_LATE_RUN, STATE_COOLDOWN, STATE_FINAL_SHUTDOWN]
 ACTIVE_STATES = (STATE_RUNNING, STATE_LATE_RUN)
+# `power_level` values: the fuel estimate's levels, from the heater's state/substate.
+POWER_LEVELS = ["off", "starting", "low", "middle", "high"]
+FUEL_RATE_LEVELS = ("starting", "low", "middle", "high")
 
 # Limits the firmware enforces (components/at_app/at_app.c).
 MIN_AUTO_TEMP = 0
@@ -38,6 +41,10 @@ MAX_PREHEAT_MINUTES = 600
 MIN_PREHEAT_COOLANT = 40
 MAX_PREHEAT_COOLANT = 95
 MAX_FREEZE_TARGET = 10
+MAX_FUEL_PRICE = 100
+MIN_FUEL_FACTOR = 0.2
+MAX_FUEL_FACTOR = 5
+MAX_FUEL_RATE = 5
 
 SERVICE_SET_TIMERS = "set_timers"
 SERVICE_SET_EXTERNAL_TEMPERATURE = "set_external_temperature"

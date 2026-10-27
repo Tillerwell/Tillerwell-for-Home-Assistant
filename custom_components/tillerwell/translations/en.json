@@ -84,7 +84,13 @@
       "preheat_temp": {"name": "Preheat coolant limit"},
       "prevent_freezing_target": {"name": "Prevent freezing target"},
       "hyst_min": {"name": "Start hysteresis"},
-      "hyst_max": {"name": "Stop hysteresis"}
+      "hyst_max": {"name": "Stop hysteresis"},
+      "fuel_price": {"name": "Fuel price"},
+      "fuel_factor": {"name": "Fuel calibration factor"},
+      "fuel_rate_starting": {"name": "Fuel rate while starting"},
+      "fuel_rate_low": {"name": "Fuel rate at low"},
+      "fuel_rate_middle": {"name": "Fuel rate at middle"},
+      "fuel_rate_high": {"name": "Fuel rate at high"}
     },
     "sensor": {
       "state": {
@@ -118,7 +124,27 @@
       "ext_output_pct": {"name": "Heater output"},
       "ext_fan_current_ma": {"name": "Fan current"},
       "ext_mode_name": {"name": "Mode of operation"},
-      "ext_fault_name": {"name": "Fault (extended)"}
+      "ext_fault_name": {"name": "Fault (extended)"},
+      "power_level": {
+        "name": "Power level",
+        "state": {"off": "Off", "starting": "Starting", "low": "Low", "middle": "Middle", "high": "High"}
+      },
+      "mode_name": {"name": "Heater mode"},
+      "fuel_rate": {"name": "Fuel rate (estimated)"},
+      "fuel_used": {"name": "Fuel used (estimated)"},
+      "fuel_used_today": {"name": "Fuel used today (estimated)"},
+      "fuel_cost": {"name": "Fuel cost (estimated)"},
+      "fuel_cost_today": {"name": "Fuel cost today (estimated)"},
+      "burn_hours": {"name": "Burner hours"},
+      "starts": {"name": "Starts"},
+      "hours_low": {"name": "Hours at low"},
+      "hours_middle": {"name": "Hours at middle"},
+      "hours_high": {"name": "Hours at high"},
+      "bad_crc_heater": {"name": "Heater line errors"},
+      "bad_crc_controller": {"name": "Controller line errors"},
+      "inject_fail": {"name": "Unanswered commands"},
+      "last_command": {"name": "Last command"},
+      "uptime": {"name": "Box uptime"}
     },
     "switch": {
       "heater": {"name": "Heater"},

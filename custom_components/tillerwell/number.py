@@ -12,14 +12,19 @@ from homeassistant.components.number import (
     NumberEntityDescription,
     NumberMode,
 )
-from homeassistant.const import EntityCategory, UnitOfTemperature, UnitOfTime
+from homeassistant.const import EntityCategory, UnitOfTemperature, UnitOfTime, UnitOfVolumeFlowRate
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .const import (
+    FUEL_RATE_LEVELS,
     MAX_FREEZE_TARGET,
+    MAX_FUEL_FACTOR,
+    MAX_FUEL_PRICE,
+    MAX_FUEL_RATE,
     MAX_PREHEAT_COOLANT,
     MAX_PREHEAT_MINUTES,
+    MIN_FUEL_FACTOR,
     MIN_PREHEAT_COOLANT,
     MIN_PREHEAT_MINUTES,
 )
@@ -37,6 +42,24 @@ class HearthNumberDescription(NumberEntityDescription):
     # Builds the command parameters from the new value and the current status.
     params_fn: Callable[[float, dict[str, Any]], dict[str, Any]]
     cmd: str
+    # Reads the value when it isn't a top-level status field.
+    value_fn: Callable[[dict[str, Any]], Any] | None = None
+    # Shown per litre in Home Assistant's own currency.
+    per_litre_price: bool = False
+
+
+def _rate(level: str) -> Callable[[dict[str, Any]], Any]:
+    return lambda status: (status.get("fuel_rates") or {}).get(level)
+
+
+def _rates_with(level: str) -> Callable[[float, dict[str, Any]], dict[str, Any]]:
+    """The box takes all four rates in one command: send the others back unchanged."""
+
+    def params(value: float, status: dict[str, Any]) -> dict[str, Any]:
+        rates = {k: v for k, v in (status.get("fuel_rates") or {}).items() if k in FUEL_RATE_LEVELS}
+        return {**rates, level: value}
+
+    return params
 
 
 NUMBERS: tuple[HearthNumberDescription, ...] = (
@@ -105,6 +128,48 @@ NUMBERS: tuple[HearthNumberDescription, ...] = (
         cmd="hysteresis",
         params_fn=lambda value, status: {"min": status.get("hyst_min", 2), "max": value},
     ),
+    # Fuel estimate (RoamOS 1.0011 on)
+    HearthNumberDescription(
+        key="fuel_price",
+        translation_key="fuel_price",
+        native_min_value=0,
+        native_max_value=MAX_FUEL_PRICE,
+        native_step=0.01,
+        entity_category=EntityCategory.CONFIG,
+        field="fuel_price",
+        cmd="fuel_price",
+        per_litre_price=True,
+        params_fn=lambda value, _status: {"value": value},
+    ),
+    HearthNumberDescription(
+        key="fuel_factor",
+        translation_key="fuel_factor",
+        native_min_value=MIN_FUEL_FACTOR,
+        native_max_value=MAX_FUEL_FACTOR,
+        native_step=0.01,
+        entity_category=EntityCategory.CONFIG,
+        field="fuel_factor",
+        cmd="fuel_factor",
+        params_fn=lambda value, _status: {"value": value},
+    ),
+    *(
+        HearthNumberDescription(
+            key=f"fuel_rate_{level}",
+            translation_key=f"fuel_rate_{level}",
+            device_class=NumberDeviceClass.VOLUME_FLOW_RATE,
+            native_unit_of_measurement=UnitOfVolumeFlowRate.LITERS_PER_HOUR,
+            native_min_value=0,
+            native_max_value=MAX_FUEL_RATE,
+            native_step=0.01,
+            entity_category=EntityCategory.CONFIG,
+            entity_registry_enabled_default=False,
+            field="fuel_rates",
+            cmd="fuel_rates",
+            value_fn=_rate(level),
+            params_fn=_rates_with(level),
+        )
+        for level in FUEL_RATE_LEVELS
+    ),
 )
 
 
@@ -129,7 +194,21 @@ class HearthNumber(HearthEntity, NumberEntity):
     @property
     def native_value(self) -> float | None:
         """Current setting."""
+        if self.entity_description.value_fn:
+            return self.entity_description.value_fn(self.status)
         return self.status.get(self.entity_description.field)
+
+    @property
+    def available(self) -> bool:
+        """Unavailable on firmware that does not report this setting."""
+        return super().available and self.native_value is not None
+
+    @property
+    def native_unit_of_measurement(self) -> str | None:
+        """The description's unit, or Home Assistant's currency per litre for the fuel price."""
+        if self.entity_description.per_litre_price:
+            return f"{self.hass.config.currency}/L"
+        return super().native_unit_of_measurement
 
     async def async_set_native_value(self, value: float) -> None:
         """Save a new setting on the box."""

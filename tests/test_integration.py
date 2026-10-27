@@ -30,8 +30,9 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClientMocker
 
 from custom_components.tillerwell.const import DOMAIN
+from custom_components.tillerwell.number import _rates_with
 
-from .conftest import BASE, STATUS
+from .conftest import BASE, INFO, STATUS
 
 CLIMATE_ID = "climate.hearth_a1b2c3"
 
@@ -148,6 +149,53 @@ async def test_switch_buttons_numbers(hass: HomeAssistant, box: AiohttpClientMoc
         {"cmd": "start_pump"},
         {"cmd": "hysteresis", "min": 4, "max": 2},
     ]
+
+
+async def test_fuel_estimate(hass: HomeAssistant, box: AiohttpClientMocker, entry: MockConfigEntry) -> None:
+    hass.config.currency = "GBP"
+    await setup(hass, entry)
+    used = hass.states.get("sensor.hearth_a1b2c3_fuel_used_estimated")
+    assert used.state == "12.3456"
+    assert used.attributes["unit_of_measurement"] == "L"
+    assert used.attributes["state_class"] == "total_increasing"
+    cost = hass.states.get("sensor.hearth_a1b2c3_fuel_cost_estimated")
+    assert cost.state == "18.52"
+    assert cost.attributes["unit_of_measurement"] == "GBP"
+    assert hass.states.get("sensor.hearth_a1b2c3_fuel_used_today_estimated").state == "0.75"
+    assert hass.states.get("sensor.hearth_a1b2c3_power_level").state == "off"
+    assert hass.states.get("sensor.hearth_a1b2c3_heater_mode").state == "waiting for a command"
+    assert hass.states.get("sensor.hearth_a1b2c3_starts").state == "57"
+    price = hass.states.get("number.hearth_a1b2c3_fuel_price")
+    assert price.state == "1.5"
+    assert price.attributes["unit_of_measurement"] == "GBP/L"
+
+    await hass.services.async_call(
+        NUMBER, SERVICE_SET_VALUE, {ATTR_ENTITY_ID: "number.hearth_a1b2c3_fuel_price", ATTR_VALUE: 1.62}, blocking=True
+    )
+    await hass.services.async_call(
+        NUMBER,
+        SERVICE_SET_VALUE,
+        {ATTR_ENTITY_ID: "number.hearth_a1b2c3_fuel_calibration_factor", ATTR_VALUE: 1.1},
+        blocking=True,
+    )
+    assert sent(box) == [{"cmd": "fuel_price", "value": 1.62}, {"cmd": "fuel_factor", "value": 1.1}]
+
+
+def test_fuel_rate_sends_all_four() -> None:
+    params = _rates_with("high")(0.7, STATUS)
+    assert params == {"starting": 0.15, "low": 0.15, "middle": 0.35, "high": 0.7}
+
+
+async def test_older_firmware_without_fuel(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, entry: MockConfigEntry
+) -> None:
+    status = {k: v for k, v in STATUS.items() if not k.startswith(("fuel_", "power_level", "mode_name"))}
+    aioclient_mock.get(f"{BASE}/api/info", json=INFO)
+    aioclient_mock.get(f"{BASE}/api/status", json=status)
+    aioclient_mock.get(f"{BASE}/api/timers", json=[])
+    await setup(hass, entry)
+    assert hass.states.get("sensor.hearth_a1b2c3_fuel_used_estimated").state == "unknown"
+    assert hass.states.get("number.hearth_a1b2c3_fuel_price").state == "unavailable"
 
 
 async def test_refused_command_is_an_error(

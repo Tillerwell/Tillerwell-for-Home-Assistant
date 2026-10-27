@@ -67,6 +67,22 @@ STATUS: dict[str, Any] = {
     "ext_voltage": None,
     "supply_voltage": 12.6,
     "ext_flame_temp_c": None,
+    "mode_name": "waiting for a command",
+    "power_level": "off",
+    "fuel_rate_lph": 0,
+    "fuel_litres_total": 12.3456,
+    "fuel_cost_total": 18.52,
+    "fuel_litres_today": 0.75,
+    "fuel_cost_today": 1.13,
+    "fuel_price": 1.5,
+    "fuel_factor": 1.0,
+    "fuel_rates": {"starting": 0.15, "low": 0.15, "middle": 0.35, "high": 0.62},
+    "burn_hours_total": 41.5,
+    "hours_low": 3.0,
+    "hours_middle": 12.25,
+    "hours_high": 25.0,
+    "starts_total": 57,
+    "last_command": "thermostat",
 }
 
 TIMERS: list[dict[str, Any]] = [

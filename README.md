@@ -15,12 +15,15 @@ Control an Autoterm diesel heater from Home Assistant through a **Tillerwell Hea
 | **Start preheat / Start thermostat / Ventilate / Stop** (buttons) | One-shot commands |
 | **State, Coolant temperature, Controller temperature, Thermostat temperature, Run time** | Live status |
 | **Battery voltage** | The supply voltage the heater reports, always on (exact value from extended telemetry when that is switched on) |
+| **Fuel used, Fuel cost** (total and today), **Fuel rate** | Estimated diesel use, see below. Needs RoamOS 1.0011 or later on the box |
+| **Power level, Heater mode, Burner hours, Starts** | What the heater says it is doing, and how much it has run (hours at low, middle and high are diagnostics) |
+| **Fuel price, Fuel calibration factor** (numbers) | Price per litre in your Home Assistant currency, and the estimate's correction. The four fuel rates are there too, disabled by default |
 | **Fault, Last fault** and a **Fault** problem sensor | Heater fault names as reported by the heater |
 | **Next timer, Last timer event, Timers** | The schedule stored on the box |
 | **Prevent freezing** (switch + target) | Starts the heater at the frost floor even if you pressed Stop |
 | **Preheat duration, Preheat coolant limit, Start/Stop hysteresis** (numbers) | The box's saved settings |
 | **Bypass, Use external temperature** (switches) | Bypass makes the box relay only and never send a command |
-| Diagnostics | Heater and controller link, stale data, Wi-Fi signal, clock set, running without controller |
+| Diagnostics | Heater and controller link, stale data, Wi-Fi signal, clock set, running without controller, last command; line errors, unanswered commands and box uptime are disabled by default |
 | Extended telemetry (off by default) | Flame, board and overheat temperatures, fuel pump, output. Enable the *Extended telemetry probing* switch on the box first (experimental) |
 
 Everything is polled from the box every 5 seconds.
@@ -44,6 +47,14 @@ First get the box onto your Wi-Fi (the Tillerwell app, or the box's own `Hearth-
 - **Discovery:** the box announces itself, so Home Assistant offers it under *Settings → Devices & services*. Click **Add**. Choosing *Add integration → Tillerwell Hearth* also scans your network for a few seconds and lists any boxes it finds.
 - **By hand:** if nothing is found (or you pick *Enter an address instead*), enter the box's address: its name ending in `.local` (for example `hearth-a1b2c3.local`) or its IP address. Give the box a fixed IP address in your router if you can; if it changes, use *Reconfigure* on the integration to update it.
 - The integration does not support the box's **web password**. Leave it unset on the box.
+
+## Fuel and cost
+
+The heater doesn't report its fuel pump to the box, so the box estimates fuel: time at each power level times a litres-per-hour rate (Autoterm Flow 5 spec-sheet figures by default) times the calibration factor. It keeps the totals and a daily log itself, so nothing is lost while Home Assistant is off.
+
+- **Fuel used (estimated)** is a total that only goes up, in litres, so Home Assistant keeps long-term statistics for it: use it in a statistics graph or a utility meter for weekly or monthly figures.
+- Set **Fuel price** to what you pay per litre. The box adds up the cost as it goes, so a new price applies from then on and past costs stay as they were.
+- To calibrate, fill the tank to the top, note **Fuel used**, run the heater for a few days, fill up again and divide the litres that went in by the change in **Fuel used**. Multiply **Fuel calibration factor** by that. The Tillerwell app does the sum for you.
 
 ## Thermostat
 
