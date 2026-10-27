@@ -24,6 +24,8 @@ class HearthBinarySensorDescription(BinarySensorEntityDescription):
     """A boolean field of the status document."""
 
     field: str | None = None
+    # Only filled by extended telemetry: unavailable until the heater actually sends it.
+    extended: bool = False
 
 
 BINARY_SENSORS: tuple[HearthBinarySensorDescription, ...] = (
@@ -72,6 +74,7 @@ BINARY_SENSORS: tuple[HearthBinarySensorDescription, ...] = (
         key="ext_glow_plug",
         translation_key="ext_glow_plug",
         device_class=BinarySensorDeviceClass.HEAT,
+        extended=True,
         entity_registry_enabled_default=False,
     ),
 )
@@ -99,3 +102,10 @@ class HearthBinarySensor(HearthEntity, BinarySensorEntity):
         """True, False, or None when the box has not reported it."""
         value = self.status.get(self.entity_description.field or self.entity_description.key)
         return None if value is None else bool(value)
+
+    @property
+    def available(self) -> bool:
+        """Extended telemetry is unavailable, not unknown, until the heater sends it."""
+        if not super().available:
+            return False
+        return not self.entity_description.extended or bool(self.status.get("extended_active"))

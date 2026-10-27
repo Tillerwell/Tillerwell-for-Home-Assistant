@@ -24,9 +24,9 @@ Control an Autoterm diesel heater from Home Assistant through a **Tillerwell Hea
 | **Preheat duration, Preheat coolant limit, Start/Stop hysteresis** (numbers) | The box's saved settings |
 | **Bypass, Use external temperature** (switches) | Bypass makes the box relay only and never send a command |
 | Diagnostics | Heater and controller link, stale data, Wi-Fi signal, clock set, running without controller, last command; line errors, unanswered commands and box uptime are disabled by default |
-| Extended telemetry (off by default) | Flame, board and overheat temperatures, fuel pump, output. Enable the *Extended telemetry probing* switch on the box first (experimental) |
+| Extended telemetry (off by default) | Flame, board and overheat temperatures, fuel pump, output. Enable the *Extended telemetry probing* switch on the box first (experimental). These show *Unavailable* until the heater actually answers; many heaters on a live controller bus never do |
 
-Everything is polled from the box every 5 seconds.
+Everything is polled from the box every 5 seconds. When there is nothing to report, Fault shows *No fault* and the notes and Last command show *None*. Buttons show *Unknown* until first pressed, which is how Home Assistant shows every button.
 
 ## Install with HACS
 

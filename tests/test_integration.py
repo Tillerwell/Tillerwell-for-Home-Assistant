@@ -26,6 +26,7 @@ from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import ATTR_ENTITY_ID
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
+from homeassistant.helpers import entity_registry as er
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClientMocker
 
@@ -69,6 +70,46 @@ async def test_entities(hass: HomeAssistant, box: AiohttpClientMocker, entry: Mo
     assert hass.states.get("switch.hearth_a1b2c3_heater").state == "off"
     assert hass.states.get("number.hearth_a1b2c3_preheat_duration").state == "30"
     assert hass.states.get("switch.hearth_a1b2c3_prevent_freezing").state == "off"
+
+
+async def test_nothing_to_report(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, entry: MockConfigEntry
+) -> None:
+    """No fault, notes or command show a value, and extended telemetry is unavailable until it arrives."""
+    status = {**STATUS, "timer_note": "", "last_command": None, "ext_flame_temp_c": None}
+    aioclient_mock.get(f"{BASE}/api/info", json=INFO)
+    aioclient_mock.get(f"{BASE}/api/status", json=status)
+    aioclient_mock.get(f"{BASE}/api/timers", json=[])
+    entry.add_to_hass(hass)
+    entity_registry = er.async_get(hass)
+    extended = [
+        entity_registry.async_get_or_create(
+            platform, DOMAIN, f"{INFO['device_name']}_{key}", config_entry=entry, disabled_by=None
+        ).entity_id
+        for platform, key in (("sensor", "ext_flame_temp"), ("binary_sensor", "ext_glow_plug"))
+    ]
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert hass.states.get("sensor.hearth_a1b2c3_fault").state == "No fault"
+    assert hass.states.get("sensor.hearth_a1b2c3_last_fault").state == "None"
+    assert hass.states.get("sensor.hearth_a1b2c3_last_timer_event").state == "None"
+    assert hass.states.get("sensor.hearth_a1b2c3_thermostat_note").state == "None"
+    assert hass.states.get("sensor.hearth_a1b2c3_prevent_freezing_note").state == "None"
+    assert hass.states.get("sensor.hearth_a1b2c3_last_command").state == "None"
+    for entity_id in extended:
+        assert hass.states.get(entity_id).state == "unavailable"
+
+
+async def test_fault_unknown_before_heater_reports(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, entry: MockConfigEntry
+) -> None:
+    status = {**STATUS, "fault": None, "fault_name": None}
+    aioclient_mock.get(f"{BASE}/api/info", json=INFO)
+    aioclient_mock.get(f"{BASE}/api/status", json=status)
+    aioclient_mock.get(f"{BASE}/api/timers", json=[])
+    await setup(hass, entry)
+    assert hass.states.get("sensor.hearth_a1b2c3_fault").state == "unknown"
 
 
 async def test_running_heater(hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, entry: MockConfigEntry) -> None:

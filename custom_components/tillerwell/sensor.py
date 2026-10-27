@@ -42,6 +42,10 @@ class HearthSensorDescription(SensorEntityDescription):
     value_fn: Callable[[HearthData], Any]
     # Money: shown in Home Assistant's own currency, which is what the box's fuel price is entered in.
     currency: bool = False
+    # Shown when the box has nothing to report (no fault, no note), rather than Unknown.
+    empty_value: str | None = None
+    # Only filled by extended telemetry: unavailable until the heater actually sends it.
+    extended: bool = False
 
 
 def _status(key: str) -> Callable[[HearthData], Any]:
@@ -50,6 +54,13 @@ def _status(key: str) -> Callable[[HearthData], Any]:
 
 def _non_empty(key: str) -> Callable[[HearthData], Any]:
     return lambda data: data.status.get(key) or None
+
+
+def _fault_name(data: HearthData) -> str | None:
+    """The fault, "No fault" once the heater has said code 0, unknown until it has said anything."""
+    if name := data.status.get("fault_name"):
+        return name
+    return "No fault" if data.status.get("fault") == 0 else None
 
 
 def _next_timer(data: HearthData) -> datetime | None:
@@ -96,11 +107,12 @@ SENSORS: tuple[HearthSensorDescription, ...] = (
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=_status("elapsed_min"),
     ),
-    HearthSensorDescription(key="fault_name", translation_key="fault_name", value_fn=_non_empty("fault_name")),
+    HearthSensorDescription(key="fault_name", translation_key="fault_name", value_fn=_fault_name),
     HearthSensorDescription(
         key="last_fault_name",
         translation_key="last_fault_name",
         entity_category=EntityCategory.DIAGNOSTIC,
+        empty_value="None",
         value_fn=_status("last_fault_name"),
     ),
     HearthSensorDescription(
@@ -113,18 +125,21 @@ SENSORS: tuple[HearthSensorDescription, ...] = (
         key="timer_note",
         translation_key="timer_note",
         entity_category=EntityCategory.DIAGNOSTIC,
+        empty_value="None",
         value_fn=_non_empty("timer_note"),
     ),
     HearthSensorDescription(
         key="auto_note",
         translation_key="auto_note",
         entity_category=EntityCategory.DIAGNOSTIC,
+        empty_value="None",
         value_fn=_non_empty("auto_note"),
     ),
     HearthSensorDescription(
         key="prevent_freezing_note",
         translation_key="prevent_freezing_note",
         entity_category=EntityCategory.DIAGNOSTIC,
+        empty_value="None",
         value_fn=_non_empty("prevent_freezing_note"),
     ),
     HearthSensorDescription(
@@ -235,6 +250,7 @@ SENSORS: tuple[HearthSensorDescription, ...] = (
         key="last_command",
         translation_key="last_command",
         entity_category=EntityCategory.DIAGNOSTIC,
+        empty_value="None",
         value_fn=_status("last_command"),
     ),
     HearthSensorDescription(
@@ -248,7 +264,6 @@ SENSORS: tuple[HearthSensorDescription, ...] = (
         entity_registry_enabled_default=False,
         value_fn=_status("uptime_s"),
     ),
-    # Extended telemetry: only filled while "Extended telemetry probing" is on (experimental).
     HearthSensorDescription(
         key="supply_voltage",
         translation_key="supply_voltage",
@@ -258,16 +273,20 @@ SENSORS: tuple[HearthSensorDescription, ...] = (
         suggested_display_precision=1,
         value_fn=_supply_voltage,
     ),
-    _temperature("ext_flame_temp", field="ext_flame_temp_c", entity_registry_enabled_default=False),
-    _temperature("ext_liquid_temp", field="ext_liquid_temp_c", entity_registry_enabled_default=False),
-    _temperature("ext_overheat_temp", field="ext_overheat_temp_c", entity_registry_enabled_default=False),
-    _temperature("ext_board_temp", field="ext_board_temp_c", entity_registry_enabled_default=False),
+    # Extended telemetry: only filled while "Extended telemetry probing" is on and the heater answers (experimental).
+    _temperature("ext_flame_temp", field="ext_flame_temp_c", extended=True, entity_registry_enabled_default=False),
+    _temperature("ext_liquid_temp", field="ext_liquid_temp_c", extended=True, entity_registry_enabled_default=False),
+    _temperature(
+        "ext_overheat_temp", field="ext_overheat_temp_c", extended=True, entity_registry_enabled_default=False
+    ),
+    _temperature("ext_board_temp", field="ext_board_temp_c", extended=True, entity_registry_enabled_default=False),
     HearthSensorDescription(
         key="ext_fuel_pump_hz",
         translation_key="ext_fuel_pump_hz",
         device_class=SensorDeviceClass.FREQUENCY,
         native_unit_of_measurement=UnitOfFrequency.HERTZ,
         state_class=SensorStateClass.MEASUREMENT,
+        extended=True,
         entity_registry_enabled_default=False,
         value_fn=_status("ext_fuel_pump_hz"),
     ),
@@ -276,6 +295,7 @@ SENSORS: tuple[HearthSensorDescription, ...] = (
         translation_key="ext_output_pct",
         native_unit_of_measurement=PERCENTAGE,
         state_class=SensorStateClass.MEASUREMENT,
+        extended=True,
         entity_registry_enabled_default=False,
         value_fn=_status("ext_output_pct"),
     ),
@@ -285,12 +305,14 @@ SENSORS: tuple[HearthSensorDescription, ...] = (
         device_class=SensorDeviceClass.CURRENT,
         native_unit_of_measurement=UnitOfElectricCurrent.MILLIAMPERE,
         state_class=SensorStateClass.MEASUREMENT,
+        extended=True,
         entity_registry_enabled_default=False,
         value_fn=_status("ext_fan_current_ma"),
     ),
     HearthSensorDescription(
         key="ext_mode_name",
         translation_key="ext_mode_name",
+        extended=True,
         entity_registry_enabled_default=False,
         value_fn=_status("ext_mode_name"),
     ),
@@ -298,6 +320,7 @@ SENSORS: tuple[HearthSensorDescription, ...] = (
         key="ext_fault_name",
         translation_key="ext_fault_name",
         entity_category=EntityCategory.DIAGNOSTIC,
+        extended=True,
         entity_registry_enabled_default=False,
         value_fn=_status("ext_fault_name"),
     ),
@@ -331,7 +354,16 @@ class HearthSensor(HearthEntity, SensorEntity):
             return None
         if self.entity_description.key == "power_level" and value not in POWER_LEVELS:
             return None
+        if value in (None, "") and self.entity_description.empty_value is not None:
+            return self.entity_description.empty_value
         return value
+
+    @property
+    def available(self) -> bool:
+        """Extended telemetry is unavailable, not unknown, until the heater sends it."""
+        if not super().available:
+            return False
+        return not self.entity_description.extended or bool(self.status.get("extended_active"))
 
     @property
     def native_unit_of_measurement(self) -> str | None:
