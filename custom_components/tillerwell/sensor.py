@@ -99,6 +99,7 @@ SENSORS: tuple[HearthSensorDescription, ...] = (
     _temperature("coolant_temp"),
     _temperature("cabin_temp"),
     _temperature("effective_temp"),
+    _temperature("heater_temp"),
     HearthSensorDescription(
         key="elapsed_min",
         translation_key="elapsed_min",

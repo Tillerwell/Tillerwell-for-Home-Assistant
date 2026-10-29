@@ -62,6 +62,7 @@ async def test_entities(hass: HomeAssistant, box: AiohttpClientMocker, entry: Mo
 
     assert hass.states.get("sensor.hearth_a1b2c3_state").state == "idle"
     assert hass.states.get("sensor.hearth_a1b2c3_coolant_temperature").state == "21.5"
+    assert hass.states.get("sensor.hearth_a1b2c3_heater_temperature").state == "17"
     assert hass.states.get("sensor.hearth_a1b2c3_wi_fi_signal").state == "-61"
     assert hass.states.get("sensor.hearth_a1b2c3_timers").state == "1"
     assert hass.states.get("sensor.hearth_a1b2c3_next_timer").state.startswith("2026-")

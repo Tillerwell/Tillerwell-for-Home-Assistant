@@ -12,7 +12,7 @@ from homeassistant.components.climate import (
     HVACAction,
     HVACMode,
 )
-from homeassistant.const import ATTR_TEMPERATURE, UnitOfTemperature
+from homeassistant.const import ATTR_TEMPERATURE, PRECISION_TENTHS, PRECISION_WHOLE, UnitOfTemperature
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import config_validation as cv
@@ -130,6 +130,11 @@ class HearthClimate(HearthEntity, ClimateEntity):
         """The temperature the box's thermostat is using (external sensor if set, else the controller's)."""
         value = self.status.get("effective_temp")
         return self.status.get("cabin_temp") if value is None else value
+
+    @property
+    def precision(self) -> float:
+        """Tenths from a Home Assistant sensor; the controller only reports whole degrees."""
+        return PRECISION_TENTHS if self.status.get("external_temp_active") else PRECISION_WHOLE
 
     @property
     def target_temperature_low(self) -> float | None:

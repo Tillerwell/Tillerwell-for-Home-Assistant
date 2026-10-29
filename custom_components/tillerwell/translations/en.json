@@ -46,7 +46,7 @@
     "step": {
       "init": {
         "title": "Tillerwell Hearth options",
-        "description": "Pick a Home Assistant temperature sensor (for example one in the cabin) and it is sent to the box every 30 seconds. The box's thermostat uses it instead of the controller's reading while \"Use external temperature\" is on.",
+        "description": "Pick a Home Assistant temperature sensor (for example one in the cabin) and it is sent to the box every 30 seconds. While \"Use external temperature\" is on, the box's thermostat uses it and the heater is given it in place of the controller's reading (whole degrees).",
         "data": {
           "external_temperature_entity": "Room temperature sensor"
         }
@@ -109,6 +109,7 @@
       "coolant_temp": {"name": "Coolant temperature"},
       "cabin_temp": {"name": "Controller temperature"},
       "effective_temp": {"name": "Thermostat temperature"},
+      "heater_temp": {"name": "Heater temperature"},
       "elapsed_min": {"name": "Run time"},
       "fault_name": {"name": "Fault"},
       "last_fault_name": {"name": "Last fault"},

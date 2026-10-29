@@ -65,7 +65,7 @@ If the heater was started some other way (the Comfort Controller, a timer, the H
 
 ### Use a room sensor you already have
 
-The box only knows the temperature at the controller. In the integration's **Configure** dialog, pick any Home Assistant temperature sensor (a Zigbee sensor in the cabin, say). It is sent to the box every 30 seconds, converted to °C, and used for the thermostat while **Use external temperature** is on. If you would rather push it from an automation, use `tillerwell.set_external_temperature`; the box only trusts a value for 90 seconds.
+The box only knows the temperature at the controller. In the integration's **Configure** dialog, pick any Home Assistant temperature sensor (a Zigbee sensor in the cabin, say). It is sent to the box every 30 seconds, converted to °C, and while **Use external temperature** is on it is used for the box's thermostat and, from RoamOS 1.0036, given to the heater in place of the Comfort Controller's own reading (whole °C), so the heater's own thermostat runs on it too. **Heater temperature** shows what the heater is being told; **Controller temperature** stays the controller's own reading. If you would rather push it from an automation, use `tillerwell.set_external_temperature`; the box only trusts a value for 90 seconds.
 
 ## Timers
 

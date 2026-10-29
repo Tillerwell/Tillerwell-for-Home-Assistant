@@ -39,6 +39,8 @@ STATUS: dict[str, Any] = {
     "stale": False,
     "last_fault_name": None,
     "effective_temp": 17,
+    "heater_temp": 17,
+    "heater_temp_external": False,
     "external_temp_active": False,
     "use_external_temp": True,
     "auto_enabled": False,
