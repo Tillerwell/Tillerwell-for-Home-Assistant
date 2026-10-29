@@ -90,8 +90,9 @@ async def async_setup_entry(
 class HearthClimate(HearthEntity, ClimateEntity):
     """The thermostat: Heat arms the box's Auto mode, Off stops the heater.
 
-    The box starts the heater at `low` minus its start hysteresis and stops it at `high`
-    plus its stop hysteresis, so the range is the comfort band, not the switching points.
+    Like the Comfort Controller set to `high - 1` (RoamOS 1.0038 on): the first run after Heat
+    starts at or below `high - 1`, later runs start at `low`, and every run goes on to `high`.
+    The range is exactly where the heater starts and stops; `auto_start_at` reports the next start.
     """
 
     _attr_name = None
@@ -154,6 +155,10 @@ class HearthClimate(HearthEntity, ClimateEntity):
             raise ServiceValidationError("Give both a low and a high temperature")
         if low >= high:
             raise ServiceValidationError("The low temperature must be below the high temperature")
+        # hyst_min + hyst_max no longer moves the start or stop points; it is only the narrowest range the box accepts.
+        hyst_min, hyst_max = self.status.get("hyst_min"), self.status.get("hyst_max")
+        if hyst_min is not None and hyst_max is not None and high - low < hyst_min + hyst_max:
+            raise ServiceValidationError(f"Keep the low and high temperatures at least {hyst_min + hyst_max:g}° apart")
         await self.coordinator.async_command("auto_range", low=low, high=high)
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:

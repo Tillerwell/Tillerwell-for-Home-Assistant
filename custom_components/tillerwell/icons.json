@@ -15,8 +15,6 @@
       "tank_filled": {"default": "mdi:fuel"}
     },
     "number": {
-      "hyst_max": {"default": "mdi:thermometer-chevron-up"},
-      "hyst_min": {"default": "mdi:thermometer-chevron-down"},
       "preheat_minutes": {"default": "mdi:timer-cog-outline"},
       "preheat_temp": {"default": "mdi:thermometer-high"},
       "prevent_freezing_target": {"default": "mdi:thermometer-low"},
@@ -30,6 +28,7 @@
       "tank_litres": {"default": "mdi:barrel"}
     },
     "sensor": {
+      "auto_start_at": {"default": "mdi:thermometer-auto"},
       "auto_note": {"default": "mdi:message-text-outline"},
       "elapsed_min": {"default": "mdi:timer-outline"},
       "fault_name": {"default": "mdi:alert-circle-outline"},

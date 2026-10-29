@@ -46,6 +46,8 @@ class HearthSensorDescription(SensorEntityDescription):
     empty_value: str | None = None
     # Only filled by extended telemetry: unavailable until the heater actually sends it.
     extended: bool = False
+    # Unavailable on firmware whose status does not carry this field at all.
+    required_field: str | None = None
 
 
 def _status(key: str) -> Callable[[HearthData], Any]:
@@ -128,6 +130,16 @@ SENSORS: tuple[HearthSensorDescription, ...] = (
         entity_category=EntityCategory.DIAGNOSTIC,
         empty_value="None",
         value_fn=_non_empty("timer_note"),
+    ),
+    # The cabin temperature the thermostat's next start happens at: high - 1 before the first run, low after it.
+    # RoamOS 1.0038 on.
+    HearthSensorDescription(
+        key="auto_start_at",
+        translation_key="auto_start_at",
+        device_class=SensorDeviceClass.TEMPERATURE,
+        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+        required_field="auto_start_at",
+        value_fn=_status("auto_start_at"),
     ),
     HearthSensorDescription(
         key="auto_note",
@@ -369,8 +381,10 @@ class HearthSensor(HearthEntity, SensorEntity):
 
     @property
     def available(self) -> bool:
-        """Extended telemetry is unavailable, not unknown, until the heater sends it."""
+        """Unavailable, not unknown, until extended telemetry arrives, or where older firmware lacks the field."""
         if not super().available:
+            return False
+        if self.entity_description.required_field and self.entity_description.required_field not in self.status:
             return False
         return not self.entity_description.extended or bool(self.status.get("extended_active"))
 

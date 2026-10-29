@@ -104,33 +104,6 @@ NUMBERS: tuple[HearthNumberDescription, ...] = (
         cmd="freeze_target",
         params_fn=lambda value, _status: {"value": value},
     ),
-    # The box takes both hysteresis values in one command, so each number sends the other one back too.
-    HearthNumberDescription(
-        key="hyst_min",
-        translation_key="hyst_min",
-        device_class=NumberDeviceClass.TEMPERATURE_DELTA,
-        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
-        native_min_value=2,
-        native_max_value=7,
-        native_step=1,
-        entity_category=EntityCategory.CONFIG,
-        field="hyst_min",
-        cmd="hysteresis",
-        params_fn=lambda value, status: {"min": value, "max": status.get("hyst_max", 1)},
-    ),
-    HearthNumberDescription(
-        key="hyst_max",
-        translation_key="hyst_max",
-        device_class=NumberDeviceClass.TEMPERATURE_DELTA,
-        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
-        native_min_value=1,
-        native_max_value=3,
-        native_step=1,
-        entity_category=EntityCategory.CONFIG,
-        field="hyst_max",
-        cmd="hysteresis",
-        params_fn=lambda value, status: {"min": status.get("hyst_min", 2), "max": value},
-    ),
     # Fuel estimate (RoamOS 1.0011 on)
     HearthNumberDescription(
         key="fuel_price",

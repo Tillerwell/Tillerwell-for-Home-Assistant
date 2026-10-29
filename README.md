@@ -22,7 +22,8 @@ Control an Autoterm diesel heater from Home Assistant through a **Tillerwell Hea
 | **Fault, Last fault** and a **Fault** problem sensor | Heater fault names as reported by the heater |
 | **Next timer, Last timer event, Timers** | The schedule stored on the box |
 | **Prevent freezing** (switch + target) | Starts the heater at the frost floor even if you pressed Stop |
-| **Preheat duration, Preheat coolant limit, Start/Stop hysteresis** (numbers) | The box's saved settings |
+| **Preheat duration, Preheat coolant limit** (numbers) | The box's saved settings |
+| **Next start temperature** | The cabin temperature the thermostat's next start happens at. Needs RoamOS 1.0038 or later; *Unavailable* before that |
 | **Bypass, Use external temperature** (switches) | Bypass makes the box relay only and never send a command |
 | Diagnostics | Heater and controller link, stale data, Wi-Fi signal, clock set, running without controller, last command; line errors, unanswered commands and box uptime are disabled by default |
 | Extended telemetry (off by default) | Flame, board and overheat temperatures, fuel pump, output. Enable the *Extended telemetry probing* switch on the box first (experimental). These show *Unavailable* until the heater actually answers; many heaters on a live controller bus never do |
@@ -59,7 +60,9 @@ The heater doesn't report its fuel pump to the box, so the box estimates fuel: t
 
 ## Thermostat
 
-The box runs the thermostat itself, so it keeps working if Home Assistant is off. The two set points are a comfort band, not the switching points: the heater starts at **low minus the start hysteresis** and stops at **high plus the stop hysteresis** (both are numbers on the device). The set points are whole degrees from 0 to 30.
+The box runs the thermostat itself, so it keeps working if Home Assistant is off. It behaves like the Comfort Controller set to one degree below the top of your range. When you set **Heat**, the heater starts straight away if the cabin is at or below high minus 1, and otherwise waits until it falls that far. Every run goes on until the cabin reaches **high**; the heater is never stopped inside the range. After the first run it stays off until the cabin falls to **low**, then runs back up to **high**, and so on. Fewer, longer runs avoid the short cycling that cokes up the burner and glow plug. **Next start temperature** shows where the next start will happen (RoamOS 1.0038 and later; older firmware started at low minus a start buffer and stopped at high plus a stop buffer).
+
+The set points are whole degrees from 0 to 30, at least the box's narrowest allowed range apart (3 degrees unless it has been changed).
 
 If the heater was started some other way (the Comfort Controller, a timer, the Heater switch), the thermostat shows **Heat** while it runs. Setting **Off** switches Auto off first and then stops the heater, because otherwise the box would start it again.
 

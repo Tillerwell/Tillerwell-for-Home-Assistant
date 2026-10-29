@@ -71,6 +71,10 @@ async def test_entities(hass: HomeAssistant, box: AiohttpClientMocker, entry: Mo
     assert hass.states.get("switch.hearth_a1b2c3_heater").state == "off"
     assert hass.states.get("number.hearth_a1b2c3_preheat_duration").state == "30"
     assert hass.states.get("switch.hearth_a1b2c3_prevent_freezing").state == "off"
+    assert hass.states.get("sensor.hearth_a1b2c3_next_start_temperature").state == "20"
+    # The range is exactly where the heater starts and stops now; there is no buffer to set.
+    assert hass.states.get("number.hearth_a1b2c3_start_hysteresis") is None
+    assert hass.states.get("number.hearth_a1b2c3_stop_hysteresis") is None
 
 
 async def test_nothing_to_report(
@@ -166,6 +170,15 @@ async def test_temperature_range(hass: HomeAssistant, box: AiohttpClientMocker, 
             {ATTR_ENTITY_ID: CLIMATE_ID, ATTR_TARGET_TEMP_LOW: 22, ATTR_TARGET_TEMP_HIGH: 20},
             blocking=True,
         )
+    # hyst_min + hyst_max (3°) is the narrowest range the box accepts
+    with pytest.raises(ServiceValidationError, match="at least 3°"):
+        await hass.services.async_call(
+            CLIMATE,
+            SERVICE_SET_TEMPERATURE,
+            {ATTR_ENTITY_ID: CLIMATE_ID, ATTR_TARGET_TEMP_LOW: 20, ATTR_TARGET_TEMP_HIGH: 22},
+            blocking=True,
+        )
+    assert len(sent(box)) == 1
 
 
 async def test_switch_buttons_numbers(hass: HomeAssistant, box: AiohttpClientMocker, entry: MockConfigEntry) -> None:
@@ -182,14 +195,14 @@ async def test_switch_buttons_numbers(hass: HomeAssistant, box: AiohttpClientMoc
     await hass.services.async_call(
         NUMBER,
         SERVICE_SET_VALUE,
-        {ATTR_ENTITY_ID: "number.hearth_a1b2c3_start_hysteresis", ATTR_VALUE: 4},
+        {ATTR_ENTITY_ID: "number.hearth_a1b2c3_preheat_coolant_limit", ATTR_VALUE: 80},
         blocking=True,
     )
     assert sent(box) == [
         {"cmd": "start_preheat", "minutes": 30},
         {"cmd": "freeze", "enabled": True},
         {"cmd": "start_pump"},
-        {"cmd": "hysteresis", "min": 4, "max": 2},
+        {"cmd": "preheat_temp", "value": 80},
     ]
 
 
@@ -247,7 +260,11 @@ def test_fuel_rate_sends_all_four() -> None:
 async def test_older_firmware_without_fuel(
     hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, entry: MockConfigEntry
 ) -> None:
-    status = {k: v for k, v in STATUS.items() if not k.startswith(("fuel_", "power_level", "mode_name", "tank_"))}
+    status = {
+        k: v
+        for k, v in STATUS.items()
+        if not k.startswith(("fuel_", "power_level", "mode_name", "tank_", "auto_start_at"))
+    }
     aioclient_mock.get(f"{BASE}/api/info", json=INFO)
     aioclient_mock.get(f"{BASE}/api/status", json=status)
     aioclient_mock.get(f"{BASE}/api/timers", json=[])
@@ -255,6 +272,8 @@ async def test_older_firmware_without_fuel(
     assert hass.states.get("sensor.hearth_a1b2c3_fuel_used_estimated").state == "unknown"
     assert hass.states.get("number.hearth_a1b2c3_fuel_price").state == "unavailable"
     assert hass.states.get("number.hearth_a1b2c3_fuel_in_tank").state == "unavailable"
+    # before RoamOS 1.0038
+    assert hass.states.get("sensor.hearth_a1b2c3_next_start_temperature").state == "unavailable"
 
 
 async def test_refused_command_is_an_error(
