@@ -5,3 +5,9 @@ __pycache__/
 .venv/
 venv/
 .DS_Store
+
+# Claude memory and local notes: never publish
+MEMORY.md
+memory/
+CLAUDE.local.md
+.claude/
