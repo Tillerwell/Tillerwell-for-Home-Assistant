@@ -96,7 +96,7 @@ class HearthClimate(HearthEntity, ClimateEntity):
     """
 
     _attr_name = None
-    _attr_temperature_unit = UnitOfTemperature.CELSIUS
+    _attr_native_temperature_unit = UnitOfTemperature.CELSIUS
     _attr_hvac_modes = [HVACMode.OFF, HVACMode.HEAT]
     _attr_supported_features = (
         ClimateEntityFeature.TARGET_TEMPERATURE_RANGE | ClimateEntityFeature.TURN_ON | ClimateEntityFeature.TURN_OFF
@@ -127,7 +127,7 @@ class HearthClimate(HearthEntity, ClimateEntity):
         return HVACAction.IDLE if self.hvac_mode == HVACMode.HEAT else HVACAction.OFF
 
     @property
-    def current_temperature(self) -> float | None:
+    def native_current_temperature(self) -> float | None:
         """The temperature the box's thermostat is using (external sensor if set, else the controller's)."""
         value = self.status.get("effective_temp")
         return self.status.get("cabin_temp") if value is None else value
@@ -138,19 +138,19 @@ class HearthClimate(HearthEntity, ClimateEntity):
         return PRECISION_TENTHS if self.status.get("external_temp_active") else PRECISION_WHOLE
 
     @property
-    def target_temperature_low(self) -> float | None:
+    def native_target_temperature_low(self) -> float | None:
         """Bottom of the comfort band."""
         return self.status.get("auto_low")
 
     @property
-    def target_temperature_high(self) -> float | None:
+    def native_target_temperature_high(self) -> float | None:
         """Top of the comfort band."""
         return self.status.get("auto_high")
 
     async def async_set_temperature(self, **kwargs: Any) -> None:
         """Set the comfort band."""
-        low = kwargs.get("target_temp_low", self.target_temperature_low)
-        high = kwargs.get("target_temp_high", self.target_temperature_high)
+        low = kwargs.get("target_temp_low", self.native_target_temperature_low)
+        high = kwargs.get("target_temp_high", self.native_target_temperature_high)
         if low is None or high is None:
             raise ServiceValidationError("Give both a low and a high temperature")
         if low >= high:

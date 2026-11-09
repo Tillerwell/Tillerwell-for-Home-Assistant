@@ -135,7 +135,7 @@ class TillerwellConfigFlow(ConfigFlow, domain=DOMAIN):
 
     async def _async_create_for(self, host: str, device_name: str) -> ConfigFlowResult:
         await self.async_set_unique_id(device_name)
-        self._abort_if_unique_id_configured(updates={CONF_HOST: host})
+        self._abort_if_unique_id_configured(updates={CONF_HOST: host}, reload_on_update=False)
         return self.async_create_entry(title=title_for(device_name), data={CONF_HOST: host})
 
     async def async_step_zeroconf(self, discovery_info: ZeroconfServiceInfo) -> ConfigFlowResult:
@@ -150,7 +150,7 @@ class TillerwellConfigFlow(ConfigFlow, domain=DOMAIN):
         self._host = host
         self._device_name = info["device_name"]
         await self.async_set_unique_id(self._device_name)
-        self._abort_if_unique_id_configured(updates={CONF_HOST: host})
+        self._abort_if_unique_id_configured(updates={CONF_HOST: host}, reload_on_update=False)
         self.context["title_placeholders"] = {"name": title_for(self._device_name)}
         return await self.async_step_discovery_confirm()
 
@@ -180,7 +180,7 @@ class TillerwellConfigFlow(ConfigFlow, domain=DOMAIN):
             else:
                 await self.async_set_unique_id(info["device_name"])
                 self._abort_if_unique_id_mismatch(reason="wrong_device")
-                return self.async_update_reload_and_abort(entry, data_updates={CONF_HOST: host})
+                return self.async_update_and_abort(entry, data_updates={CONF_HOST: host})
         return self.async_show_form(
             step_id="reconfigure",
             data_schema=vol.Schema({vol.Required(CONF_HOST, default=entry.data[CONF_HOST]): str}),

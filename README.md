@@ -40,7 +40,7 @@ Or use the button at the top of this page.
 
 Manual install: copy `custom_components/tillerwell` into `config/custom_components/` and restart.
 
-Needs Home Assistant 2025.1 or newer.
+Needs Home Assistant 2026.11 or newer.
 
 ## Set up
 
