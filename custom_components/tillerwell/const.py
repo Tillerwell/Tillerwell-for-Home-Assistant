@@ -20,6 +20,8 @@ TIMERS_INTERVAL = timedelta(minutes=1)
 EXTERNAL_TEMP_REFRESH = timedelta(seconds=30)
 # Do not hammer the box with clock fixes while it is refusing them.
 CLOCK_SYNC_RETRY = timedelta(seconds=60)
+# While the box does not answer, look for it on the network this often: a restart can bring it back on a new address.
+REDISCOVER_INTERVAL = timedelta(seconds=30)
 
 # `state` values reported by the firmware.
 STATE_IDLE = "idle"

@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
-import asyncio
+from ipaddress import ip_address
 from typing import Any
 
 import voluptuous as vol
-from homeassistant.components import zeroconf
 from homeassistant.config_entries import ConfigFlow, ConfigFlowResult, OptionsFlow
 from homeassistant.const import CONF_HOST
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.core import callback
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.selector import (
     EntitySelector,
@@ -20,46 +19,14 @@ from homeassistant.helpers.selector import (
     SelectSelectorMode,
 )
 from homeassistant.helpers.service_info.zeroconf import ZeroconfServiceInfo
-from zeroconf import IPVersion, ServiceStateChange
-from zeroconf.asyncio import AsyncServiceBrowser, AsyncServiceInfo
 
 from .api import HearthAuthError, HearthClient, HearthError
 from .const import CONF_EXTERNAL_TEMP_ENTITY, DOMAIN
 from .coordinator import HearthConfigEntry
+from .discovery import async_discover_hosts, box_name
 
-SERVICE_TYPE = "_hearth-ha._tcp.local."
-SCAN_SECONDS = 3
 CONF_DEVICE = "device"
 MANUAL = "manual"
-
-
-def title_for(device_name: str) -> str:
-    """`hearth-a1b2c3` becomes `Hearth a1b2c3`."""
-    prefix, sep, rest = device_name.partition("-")
-    return f"{prefix.capitalize()} {rest}" if sep and rest else device_name
-
-
-async def async_discover_hosts(hass: HomeAssistant) -> list[str]:
-    """Browse the network for Hearth boxes for a few seconds and return their IPv4 addresses."""
-    aiozc = await zeroconf.async_get_async_instance(hass)
-    names: set[str] = set()
-
-    def on_change(zeroconf: Any, service_type: str, name: str, state_change: ServiceStateChange) -> None:
-        if state_change is not ServiceStateChange.Removed:
-            names.add(name)
-
-    browser = AsyncServiceBrowser(aiozc.zeroconf, SERVICE_TYPE, handlers=[on_change])
-    try:
-        await asyncio.sleep(SCAN_SECONDS)
-    finally:
-        await browser.async_cancel()
-
-    hosts: list[str] = []
-    for name in sorted(names):
-        info = AsyncServiceInfo(SERVICE_TYPE, name)
-        if await info.async_request(aiozc.zeroconf, 2000):
-            hosts.extend(addr for addr in info.parsed_addresses(IPVersion.V4Only) if addr not in hosts)
-    return hosts
 
 
 class TillerwellConfigFlow(ConfigFlow, domain=DOMAIN):
@@ -69,15 +36,15 @@ class TillerwellConfigFlow(ConfigFlow, domain=DOMAIN):
 
     def __init__(self) -> None:
         self._host: str | None = None
-        self._device_name: str | None = None
-        self._found: dict[str, str] | None = None
+        self._info: dict[str, Any] | None = None
+        self._found: dict[str, dict[str, Any]] | None = None
 
     async def _async_fetch_info(self, host: str) -> dict[str, Any]:
         return await HearthClient(async_get_clientsession(self.hass), host).get_info()
 
-    async def _async_find_boxes(self) -> dict[str, str]:
-        """Boxes on the network that are not set up yet: {host: device name}."""
-        found: dict[str, str] = {}
+    async def _async_find_boxes(self) -> dict[str, dict[str, Any]]:
+        """Boxes on the network that are not set up yet: {host: /api/info}."""
+        found: dict[str, dict[str, Any]] = {}
         configured = {entry.unique_id for entry in self._async_current_entries()}
         for host in await async_discover_hosts(self.hass):
             try:
@@ -85,7 +52,7 @@ class TillerwellConfigFlow(ConfigFlow, domain=DOMAIN):
             except HearthError:
                 continue
             if info["device_name"] not in configured:
-                found[host] = info["device_name"]
+                found[host] = info
         return found
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
@@ -100,7 +67,7 @@ class TillerwellConfigFlow(ConfigFlow, domain=DOMAIN):
         if not self._found:
             return await self.async_step_manual()
         options = [
-            SelectOptionDict(value=host, label=f"{title_for(name)} ({host})") for host, name in self._found.items()
+            SelectOptionDict(value=host, label=f"{box_name(info)} ({host})") for host, info in self._found.items()
         ]
         options.append(SelectOptionDict(value=MANUAL, label="Enter an address instead"))
         return self.async_show_form(
@@ -126,21 +93,23 @@ class TillerwellConfigFlow(ConfigFlow, domain=DOMAIN):
             except HearthError:
                 errors["base"] = "cannot_connect"
             else:
-                return await self._async_create_for(host, info["device_name"])
+                return await self._async_create_for(host, info)
         return self.async_show_form(
             step_id="manual",
             data_schema=vol.Schema({vol.Required(CONF_HOST, default=(user_input or {}).get(CONF_HOST, "")): str}),
             errors=errors,
         )
 
-    async def _async_create_for(self, host: str, device_name: str) -> ConfigFlowResult:
-        await self.async_set_unique_id(device_name)
+    async def _async_create_for(self, host: str, info: dict[str, Any]) -> ConfigFlowResult:
+        await self.async_set_unique_id(info["device_name"])
         self._abort_if_unique_id_configured(updates={CONF_HOST: host}, reload_on_update=False)
-        return self.async_create_entry(title=title_for(device_name), data={CONF_HOST: host})
+        return self.async_create_entry(title=box_name(info), data={CONF_HOST: host})
 
     async def async_step_zeroconf(self, discovery_info: ZeroconfServiceInfo) -> ConfigFlowResult:
         """A box announced itself as _hearth-ha._tcp (Home Assistant switched on)."""
-        host = discovery_info.host
+        # Prefer an IPv4 address: the box's HTTP server listens on IPv4.
+        addresses = [ip_address(str(ip)) for ip in discovery_info.ip_addresses]
+        host = next((str(ip) for ip in addresses if ip.version == 4 and not ip.is_link_local), discovery_info.host)
         try:
             info = await self._async_fetch_info(host)
         except HearthAuthError:
@@ -148,21 +117,23 @@ class TillerwellConfigFlow(ConfigFlow, domain=DOMAIN):
         except HearthError:
             return self.async_abort(reason="cannot_connect")
         self._host = host
-        self._device_name = info["device_name"]
-        await self.async_set_unique_id(self._device_name)
+        self._info = info
+        await self.async_set_unique_id(info["device_name"])
+        # A new address is taken up without a reload (see __init__.py); a box whose setup is waiting to retry is
+        # reloaded by Home Assistant now that it has been seen.
         self._abort_if_unique_id_configured(updates={CONF_HOST: host}, reload_on_update=False)
-        self.context["title_placeholders"] = {"name": title_for(self._device_name)}
+        self.context["title_placeholders"] = {"name": box_name(info)}
         return await self.async_step_discovery_confirm()
 
     async def async_step_discovery_confirm(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Confirm adding a discovered box."""
-        assert self._host and self._device_name
+        assert self._host and self._info
         if user_input is not None:
-            return self.async_create_entry(title=title_for(self._device_name), data={CONF_HOST: self._host})
+            return self.async_create_entry(title=box_name(self._info), data={CONF_HOST: self._host})
         self._set_confirm_only()
         return self.async_show_form(
             step_id="discovery_confirm",
-            description_placeholders={"name": title_for(self._device_name), "host": self._host},
+            description_placeholders={"name": box_name(self._info), "host": self._host},
         )
 
     async def async_step_reconfigure(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:

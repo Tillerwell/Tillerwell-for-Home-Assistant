@@ -52,7 +52,9 @@ Needs Home Assistant 2026.11 or newer.
 First get the box onto your Wi-Fi (the Tillerwell app, or the box's own `Hearth-xxxxxx` setup network). Then:
 
 - **Discovery:** the box announces itself, so Home Assistant offers it under *Settings → Devices & services*. Click **Add**. Choosing *Add integration → Tillerwell Hearth* also scans your network for a few seconds and lists any boxes it finds.
-- **By hand:** if nothing is found (or you pick *Enter an address instead*), enter the box's address: its name ending in `.local` (for example `hearth-a1b2c3.local`) or its IP address. Give the box a fixed IP address in your router if you can; if it changes, use *Reconfigure* on the integration to update it.
+- **By hand:** if nothing is found (or you pick *Enter an address instead*), enter the box's address: its name ending in `.local` (for example `hearth-a1b2c3.local`) or its IP address. If the box comes back on a new address (a new DHCP lease, or a new `.local` name after you rename it in the app), the integration finds it on the network by itself within about 30 seconds. *Reconfigure* on the integration sets an address by hand.
+
+The device takes the name you gave the box in the Tillerwell app, and follows it when you rename it there. A name you type for it in Home Assistant wins.
 - The integration does not support the box's **web password**. Leave it unset on the box.
 
 ## Fuel and cost

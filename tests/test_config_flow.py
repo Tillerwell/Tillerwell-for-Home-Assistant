@@ -13,7 +13,7 @@ from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClien
 
 from custom_components.tillerwell.const import DOMAIN
 
-from .conftest import BASE, HOST, INFO
+from .conftest import BASE, HOST, INFO, STATUS
 
 DISCOVER = "custom_components.tillerwell.config_flow.async_discover_hosts"
 
@@ -118,6 +118,47 @@ async def test_zeroconf(hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
     result = await hass.config_entries.flow.async_configure(result["flow_id"], {})
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert result["data"] == {"host": "192.168.1.50"}
+
+
+async def test_zeroconf_moves_configured_box_without_reload(
+    hass: HomeAssistant, box: AiohttpClientMocker, entry: MockConfigEntry
+) -> None:
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    coordinator = entry.runtime_data
+    box.get("http://192.168.1.77/api/info", json=INFO)
+    box.get("http://192.168.1.77/api/status", json=dict(STATUS))
+    info = ZeroconfServiceInfo(
+        ip_address="192.168.1.77",
+        ip_addresses=["192.168.1.77"],
+        hostname="autoterm-5d.local.",
+        name="Tillerwell Hearth._hearth-ha._tcp.local.",
+        port=80,
+        properties={},
+        type="_hearth-ha._tcp.local.",
+    )
+    result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": SOURCE_ZEROCONF}, data=info)
+    await hass.async_block_till_done()
+    assert result["type"] is FlowResultType.ABORT
+    assert entry.data["host"] == "192.168.1.77"
+    assert entry.runtime_data is coordinator
+    assert coordinator.client.host == "192.168.1.77"
+
+
+async def test_zeroconf_uses_the_app_name(hass: HomeAssistant, aioclient_mock: AiohttpClientMocker) -> None:
+    aioclient_mock.get("http://192.168.1.50/api/info", json={**INFO, "display_name": "Autoterm 5D"})
+    info = ZeroconfServiceInfo(
+        ip_address="192.168.1.50",
+        ip_addresses=["192.168.1.50"],
+        hostname="autoterm-5d.local.",
+        name="Tillerwell Hearth._hearth-ha._tcp.local.",
+        port=80,
+        properties={},
+        type="_hearth-ha._tcp.local.",
+    )
+    result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": SOURCE_ZEROCONF}, data=info)
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], {})
+    assert result["title"] == "Autoterm 5D"
 
 
 async def test_options_flow(hass: HomeAssistant, box: AiohttpClientMocker, entry: MockConfigEntry) -> None:

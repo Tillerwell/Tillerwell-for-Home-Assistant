@@ -31,9 +31,19 @@ class HearthClient:
 
     def __init__(self, session: aiohttp.ClientSession, host: str) -> None:
         self._session = session
-        self._base = f"http://{host}"
+        self.set_host(host)
         # The box's HTTP server is small; one request at a time keeps it happy.
         self._lock = asyncio.Lock()
+
+    @property
+    def host(self) -> str:
+        """The address requests go to."""
+        return self._host
+
+    def set_host(self, host: str) -> None:
+        """Point at a new address (the box moved, for example a new DHCP lease after a restart)."""
+        self._host = host
+        self._base = f"http://[{host}]" if ":" in host else f"http://{host}"
 
     @property
     def host_url(self) -> str:

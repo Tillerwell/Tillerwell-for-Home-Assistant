@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from typing import Any
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
@@ -115,6 +117,13 @@ def _enable_custom_integrations(enable_custom_integrations: None) -> None:
 @pytest.fixture(autouse=True)
 def _no_real_zeroconf(mock_async_zeroconf: None) -> None:
     """The manifest depends on zeroconf; keep tests off the network."""
+
+
+@pytest.fixture(autouse=True)
+def rediscover() -> Iterator[AsyncMock]:
+    """The coordinator's network scan for a box that stopped answering: finds nothing unless a test says so."""
+    with patch("custom_components.tillerwell.coordinator.async_discover_hosts", return_value=[]) as mock:
+        yield mock
 
 
 @pytest.fixture

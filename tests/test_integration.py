@@ -26,6 +26,7 @@ from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import ATTR_ENTITY_ID
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClientMocker
@@ -33,7 +34,7 @@ from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClien
 from custom_components.tillerwell.const import DOMAIN
 from custom_components.tillerwell.number import _rates_with
 
-from .conftest import BASE, INFO, STATUS
+from .conftest import BASE, INFO, STATUS, TIMERS
 
 CLIMATE_ID = "climate.hearth_a1b2c3"
 
@@ -479,6 +480,88 @@ async def test_box_with_web_password_retries_setup(
     entry.add_to_hass(hass)
     await hass.config_entries.async_setup(entry.entry_id)
     assert entry.state is ConfigEntryState.SETUP_RETRY
+
+
+def serve(mock: AiohttpClientMocker, base: str, info: dict) -> None:
+    mock.get(f"{base}/api/info", json=info)
+    mock.get(f"{base}/api/status", json=dict(STATUS))
+    mock.get(f"{base}/api/timers", json=TIMERS)
+
+
+def device_name(hass: HomeAssistant, entry: MockConfigEntry) -> str | None:
+    device = dr.async_get(hass).async_get_device_by_identifier((DOMAIN, INFO["device_name"]), entry.entry_id)
+    return device.name if device else None
+
+
+async def test_name_from_the_app(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, entry: MockConfigEntry
+) -> None:
+    serve(aioclient_mock, BASE, {**INFO, "display_name": "Autoterm 5D"})
+    await setup(hass, entry)
+    assert entry.title == "Autoterm 5D"
+    assert device_name(hass, entry) == "Autoterm 5D"
+
+    # Renamed in the app: Home Assistant follows within an info refresh, without a reload.
+    coordinator = entry.runtime_data
+    aioclient_mock.clear_requests()
+    serve(aioclient_mock, BASE, {**INFO, "display_name": "Galley"})
+    coordinator._info_at = float("-inf")
+    await coordinator.async_refresh()
+    await hass.async_block_till_done()
+    assert entry.title == "Galley"
+    assert device_name(hass, entry) == "Galley"
+    assert entry.runtime_data is coordinator
+
+
+async def test_title_typed_in_home_assistant_is_kept(hass: HomeAssistant, aioclient_mock: AiohttpClientMocker) -> None:
+    entry = MockConfigEntry(
+        domain=DOMAIN, unique_id=INFO["device_name"], title="Boat", data={"host": "hearth-a1b2c3.local"}
+    )
+    serve(aioclient_mock, BASE, {**INFO, "display_name": "Autoterm 5D"})
+    await setup(hass, entry)
+    assert entry.title == "Boat"
+    assert device_name(hass, entry) == "Autoterm 5D"
+
+
+async def test_box_found_at_a_new_address(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, entry: MockConfigEntry, rediscover
+) -> None:
+    aioclient_mock.get(f"{BASE}/api/status", exc=TimeoutError)
+    serve(aioclient_mock, "http://192.168.1.77", INFO)
+    rediscover.return_value = ["192.168.1.77"]
+    await setup(hass, entry)
+    assert entry.data["host"] == "192.168.1.77"
+    assert hass.states.get("sensor.hearth_a1b2c3_state").state == "idle"
+
+
+async def test_other_box_at_the_address_is_ignored(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, entry: MockConfigEntry, rediscover
+) -> None:
+    aioclient_mock.get(f"{BASE}/api/status", exc=TimeoutError)
+    serve(aioclient_mock, "http://192.168.1.77", {**INFO, "device_name": "hearth-ffffff"})
+    rediscover.return_value = ["192.168.1.77"]
+    entry.add_to_hass(hass)
+    await hass.config_entries.async_setup(entry.entry_id)
+    assert entry.state is ConfigEntryState.SETUP_RETRY
+    assert entry.data["host"] == "hearth-a1b2c3.local"
+
+
+async def test_new_address_needs_no_reload(
+    hass: HomeAssistant, box: AiohttpClientMocker, entry: MockConfigEntry
+) -> None:
+    await setup(hass, entry)
+    coordinator = entry.runtime_data
+    serve(box, "http://192.168.1.77", INFO)
+    hass.config_entries.async_update_entry(entry, data={"host": "192.168.1.77"})
+    await hass.async_block_till_done()
+    assert entry.runtime_data is coordinator
+    assert coordinator.client.host == "192.168.1.77"
+    assert any(str(call[1]) == "http://192.168.1.77/api/status" for call in box.mock_calls)
+
+    # Options still reload, so the new sensor choice takes effect.
+    hass.config_entries.async_update_entry(entry, options={"external_temperature_entity": "sensor.cabin"})
+    await hass.async_block_till_done()
+    assert entry.runtime_data is not coordinator
 
 
 def test_every_translation_key_exists() -> None:

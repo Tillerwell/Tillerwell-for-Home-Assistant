@@ -27,7 +27,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: HearthConfigEntry) -> bo
     entry.runtime_data = coordinator
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
-    entry.async_on_unload(entry.add_update_listener(_async_reload_on_update))
+    entry.async_on_unload(entry.add_update_listener(_async_entry_updated))
     return True
 
 
@@ -36,6 +36,16 @@ async def async_unload_entry(hass: HomeAssistant, entry: HearthConfigEntry) -> b
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
 
-async def _async_reload_on_update(hass: HomeAssistant, entry: HearthConfigEntry) -> None:
-    """Reload when the address or options change."""
-    await hass.config_entries.async_reload(entry.entry_id)
+async def _async_entry_updated(hass: HomeAssistant, entry: HearthConfigEntry) -> None:
+    """Reload only when the options change.
+
+    A new address (the box came back on a new lease) is taken up in place and tried at once: a reload would put
+    the entry through setup again while the box may still be starting, and a failed setup backs off for minutes.
+    A new title (the box was renamed in the app) needs nothing.
+    """
+    coordinator = entry.runtime_data
+    if dict(entry.options) != coordinator.setup_options:
+        await hass.config_entries.async_reload(entry.entry_id)
+    elif entry.data[CONF_HOST] != coordinator.client.host:
+        coordinator.client.set_host(entry.data[CONF_HOST])
+        await coordinator.async_request_refresh()

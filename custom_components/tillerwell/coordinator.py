@@ -9,14 +9,16 @@ from time import monotonic
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN, UnitOfTemperature
+from homeassistant.const import CONF_HOST, STATE_UNAVAILABLE, STATE_UNKNOWN, UnitOfTemperature
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util.unit_conversion import TemperatureConverter
 
-from .api import HearthClient, HearthError
+from .api import HearthClient, HearthConnectionError, HearthError
 from .const import (
     CLOCK_SYNC_RETRY,
     CONF_EXTERNAL_TEMP_ENTITY,
@@ -25,10 +27,12 @@ from .const import (
     INFO_INTERVAL,
     MANUFACTURER,
     MODEL,
+    REDISCOVER_INTERVAL,
     SCAN_INTERVAL,
     STATE_IDLE,
     TIMERS_INTERVAL,
 )
+from .discovery import async_discover_hosts, box_name, title_for
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -65,22 +69,37 @@ class HearthCoordinator(DataUpdateCoordinator[HearthData]):
         self._clock_try_at = 0.0
         self._ext_sent_at = 0.0
         self._ext_sent_value: float | None = None
+        self._rediscover_at = float("-inf")
+        self._name: str | None = None
+        # Options the entry was set up with: only a change to these needs a reload.
+        self.setup_options = dict(entry.options)
 
     @property
     def device_info(self) -> DeviceInfo:
         """The device every entity of this box hangs off."""
         return DeviceInfo(
-            identifiers={(DOMAIN, self.config_entry.unique_id or self.config_entry.entry_id)},
-            name=self.config_entry.title,
+            identifiers={self._device_id},
+            name=box_name(self._info) if self._info else self.config_entry.title,
             manufacturer=MANUFACTURER,
             model=MODEL,
             sw_version=self._info.get("version"),
             configuration_url=self.client.host_url,
         )
 
+    @property
+    def _device_id(self) -> tuple[str, str]:
+        return (DOMAIN, self.config_entry.unique_id or self.config_entry.entry_id)
+
     async def _async_update_data(self) -> HearthData:
         try:
             status = await self.client.get_status()
+        except HearthConnectionError as err:
+            if not await self._async_find_moved_box():
+                raise UpdateFailed(str(err)) from err
+            try:
+                status = await self.client.get_status()
+            except HearthError as err:
+                raise UpdateFailed(str(err)) from err
         except HearthError as err:
             raise UpdateFailed(str(err)) from err
 
@@ -105,6 +124,50 @@ class HearthCoordinator(DataUpdateCoordinator[HearthData]):
             _LOGGER.debug("Could not refresh info: %s", err)
         else:
             self._info_at = now
+            self._apply_name()
+
+    async def _async_find_moved_box(self) -> bool:
+        """Look for this box at another address; True if it is there and the client now points at it.
+
+        A restart can bring the box back on a new DHCP lease, or under a new .local name after the owner renamed
+        it, while the app (which browses mDNS) finds it at once. Waiting for Home Assistant's own discovery to
+        notice can take minutes.
+        """
+        now = monotonic()
+        if now - self._rediscover_at < REDISCOVER_INTERVAL.total_seconds():
+            return False
+        self._rediscover_at = now
+        session = async_get_clientsession(self.hass)
+        for host in await async_discover_hosts(self.hass):
+            if host == self.client.host:
+                continue
+            try:
+                info = await HearthClient(session, host).get_info()
+            except HearthError:
+                continue
+            if info["device_name"] == self.config_entry.unique_id:
+                _LOGGER.info("%s has moved from %s to %s", self.config_entry.title, self.client.host, host)
+                self.client.set_host(host)
+                self.hass.config_entries.async_update_entry(
+                    self.config_entry, data={**self.config_entry.data, CONF_HOST: host}
+                )
+                return True
+        return False
+
+    def _apply_name(self) -> None:
+        """Follow the name the owner gives the box in the app, unless they renamed it in Home Assistant."""
+        name = box_name(self._info)
+        if name == self._name:
+            return
+        previous, self._name = self._name, name
+        entry = self.config_entry
+        if entry.title != name and entry.title in (previous, title_for(self._info["device_name"])):
+            self.hass.config_entries.async_update_entry(entry, title=name)
+        # Sets the device's own name; a name the user typed in Home Assistant (name_by_user) still wins.
+        registry = dr.async_get(self.hass)
+        device = registry.async_get_device_by_identifier(self._device_id, entry.entry_id)
+        if device and device.name != name:
+            registry.async_update_device(device.id, name=name)
 
     async def _refresh_timers(self, now: float) -> None:
         try:
