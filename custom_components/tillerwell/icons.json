@@ -12,6 +12,8 @@
       "start_preheat": {"default": "mdi:fire"},
       "start_pump": {"default": "mdi:water-pump"},
       "read_heater_info": {"default": "mdi:database-arrow-down-outline"},
+      "prime_fuel": {"default": "mdi:fuel"},
+      "fan_test": {"default": "mdi:fan"},
       "unlock_heater": {"default": "mdi:lock-open-variant-outline"},
       "start_thermostat": {"default": "mdi:thermostat"},
       "stop": {"default": "mdi:stop-circle-outline"},
@@ -28,7 +30,9 @@
       "fuel_rate_middle": {"default": "mdi:gauge"},
       "fuel_rate_high": {"default": "mdi:gauge-full"},
       "tank_capacity": {"default": "mdi:barrel-outline"},
-      "tank_litres": {"default": "mdi:barrel"}
+      "tank_litres": {"default": "mdi:barrel"},
+      "pump_minutes": {"default": "mdi:water-pump"},
+      "heater_wait_temp_set": {"default": "mdi:thermometer-water"}
     },
     "sensor": {
       "auto_start_at": {"default": "mdi:thermometer-auto"},
@@ -43,6 +47,7 @@
       "timers": {"default": "mdi:calendar-multiple"},
       "heater_wait_temp": {"default": "mdi:thermometer-water"},
       "heater_version": {"default": "mdi:chip"},
+      "heater_last_fault": {"default": "mdi:alert-circle-outline"},
       "heater_starts": {"default": "mdi:counter"},
       "heater_second_attempt": {"default": "mdi:counter"},
       "heater_no_ignition": {"default": "mdi:fire-off"},
@@ -75,6 +80,7 @@
       "debug_mode": {"default": "mdi:bug-outline"},
       "heater": {"default": "mdi:radiator", "state": {"on": "mdi:radiator"}},
       "prevent_freezing": {"default": "mdi:snowflake-alert"},
+      "pump_standby": {"default": "mdi:water-pump-off", "state": {"on": "mdi:water-pump"}},
       "use_external_temp": {"default": "mdi:thermometer-lines"}
     }
   },

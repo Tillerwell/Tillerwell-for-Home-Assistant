@@ -42,7 +42,19 @@ async def _start_pump(coordinator: HearthCoordinator) -> None:
 
 
 async def _stop(coordinator: HearthCoordinator) -> None:
-    await coordinator.async_stop()
+    """Stop whatever is running. The heater can still read idle while it primes or tests its fan, so the stop always
+    goes out (the box takes it in any state); Auto goes off first or it would start the heater again."""
+    if coordinator.data.status.get("auto_enabled"):
+        await coordinator.async_command("auto", enabled=False)
+    await coordinator.async_command("stop")
+
+
+async def _prime_fuel(coordinator: HearthCoordinator) -> None:
+    await coordinator.async_command("fuel_prime")
+
+
+async def _fan_test(coordinator: HearthCoordinator) -> None:
+    await coordinator.async_command("fan_test")
 
 
 async def _tank_filled(coordinator: HearthCoordinator) -> None:
@@ -78,6 +90,11 @@ BUTTONS: tuple[HearthButtonDescription, ...] = (
         translation_key="read_heater_info",
         entity_category=EntityCategory.CONFIG,
         press_fn=_read_heater_info,
+    ),
+    # Firmware 1.43: the heater's parts by hand, only while it is off and Auto is off. Stop ends them.
+    HearthButtonDescription(key="prime_fuel", translation_key="prime_fuel", press_fn=_prime_fuel),
+    HearthButtonDescription(
+        key="fan_test", translation_key="fan_test", entity_category=EntityCategory.CONFIG, press_fn=_fan_test
     ),
     HearthButtonDescription(
         key="unlock_heater",

@@ -12,7 +12,10 @@ Control an Autoterm diesel heater from Home Assistant through a **Tillerwell Hea
 |---|---|
 | **Thermostat** (`climate`) | Heat arms the box's Auto thermostat, Off stops the heater. Two set points, a low and a high, form the comfort band. Shows the temperature the box is using and whether the burner is on |
 | **Heater** (switch) | On starts a timed preheat of the saved duration, off stops the heater properly |
-| **Start preheat / Start thermostat / Water pump only / Stop** (buttons) | One-shot commands. *Water pump only* runs the coolant circulation pump without burning (it was called *Ventilate* before 1.6.0, wrongly) |
+| **Start preheat / Start thermostat / Water pump only / Stop** (buttons) | One-shot commands. *Water pump only* runs the coolant circulation pump without burning, for the *Water pump run time* (number, Hearth firmware 1.43; 40 minutes before). It was called *Ventilate* before 1.6.0, wrongly. Stop always sends a stop, so it also ends a prime or a fan test |
+| **Prime fuel** (button), **Fan test** (button, configuration) | Prime pushes diesel through without lighting, to clear the air after the tank ran dry; Fan test spins the blower on its own. Press Stop when done. Only while the heater is off and the thermostat is off. Needs Hearth firmware 1.43 |
+| **Heater coolant target** (number), **Heater water pump in standby** (switch) | The heater's own settings, changed in the heater itself: where it stops burning and waits during a preheat, and whether the water pump runs while it waits. *Unavailable* until Read heater info has been pressed once. Needs Hearth firmware 1.43 |
+| **Heater's last recorded fault** | The newest entry of the heater's own fault history, with the whole history (up to ten, newest first) as the `faults` attribute. Needs Hearth firmware 1.43 and a Read heater info |
 | **State, Coolant temperature, Controller temperature, Thermostat temperature, Run time** | Live status |
 | **Battery voltage** | The supply voltage the heater reports, always on (exact value from extended telemetry when that is switched on) |
 | **Fuel used, Fuel cost** (total and today), **Fuel rate** | Estimated diesel use, see below. Needs RoamOS 1.0011 or later on the box |

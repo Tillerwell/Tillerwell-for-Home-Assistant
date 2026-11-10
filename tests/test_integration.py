@@ -21,7 +21,7 @@ from homeassistant.components.climate import (
 from homeassistant.components.number import ATTR_VALUE, SERVICE_SET_VALUE
 from homeassistant.components.number import DOMAIN as NUMBER
 from homeassistant.components.switch import DOMAIN as SWITCH
-from homeassistant.components.switch import SERVICE_TURN_ON
+from homeassistant.components.switch import SERVICE_TURN_OFF, SERVICE_TURN_ON
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import ATTR_ENTITY_ID
 from homeassistant.core import HomeAssistant
@@ -239,11 +239,70 @@ async def test_heater_info_and_unlock(
     assert sent(aioclient_mock) == [{"cmd": "heater_read"}, {"cmd": "heater_unlock"}]
 
 
+async def test_service_and_heater_settings(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, entry: MockConfigEntry
+) -> None:
+    # firmware 1.43, heater idle, settings and fault history read
+    status = {
+        **STATUS,
+        "pump_minutes": 90,
+        "heater_info": {
+            "settings": {"wait_temp": 88, "pump_standby": True},
+            "report": {
+                "starts": 3,
+                "faults": [{"code": 13, "name": "No ignition"}, {"code": 78, "name": "Flame break"}],
+            },
+        },
+    }
+    aioclient_mock.get(f"{BASE}/api/info", json=INFO)
+    aioclient_mock.get(f"{BASE}/api/status", json=status)
+    aioclient_mock.get(f"{BASE}/api/timers", json=[])
+    aioclient_mock.post(f"{BASE}/api/cmd", json={"ok": True})
+    await setup(hass, entry)
+    assert hass.states.get("number.hearth_a1b2c3_water_pump_run_time").state == "90"
+    assert hass.states.get("number.hearth_a1b2c3_heater_coolant_target").state == "88"
+    assert hass.states.get("switch.hearth_a1b2c3_heater_water_pump_in_standby").state == "on"
+    last = hass.states.get("sensor.hearth_a1b2c3_heater_s_last_recorded_fault")
+    assert last.state == "No ignition" and len(last.attributes["faults"]) == 2
+    for button in ("prime_fuel", "fan_test", "stop"):
+        await hass.services.async_call(
+            BUTTON, SERVICE_PRESS, {ATTR_ENTITY_ID: f"button.hearth_a1b2c3_{button}"}, blocking=True
+        )
+    await hass.services.async_call(
+        NUMBER,
+        SERVICE_SET_VALUE,
+        {ATTR_ENTITY_ID: "number.hearth_a1b2c3_heater_coolant_target", ATTR_VALUE: 75},
+        blocking=True,
+    )
+    await hass.services.async_call(
+        SWITCH, SERVICE_TURN_OFF, {ATTR_ENTITY_ID: "switch.hearth_a1b2c3_heater_water_pump_in_standby"}, blocking=True
+    )
+    await hass.services.async_call(
+        NUMBER,
+        SERVICE_SET_VALUE,
+        {ATTR_ENTITY_ID: "number.hearth_a1b2c3_water_pump_run_time", ATTR_VALUE: 30},
+        blocking=True,
+    )
+    # Stop always goes out: the heater still reads idle while it primes
+    assert sent(aioclient_mock) == [
+        {"cmd": "fuel_prime"},
+        {"cmd": "fan_test"},
+        {"cmd": "stop"},
+        {"cmd": "heater_settings", "wait_temp": 75},
+        {"cmd": "heater_settings", "pump_standby": False},
+        {"cmd": "pump_minutes", "value": 30},
+    ]
+
+
 async def test_heater_info_before_a_read(hass: HomeAssistant, box: AiohttpClientMocker, entry: MockConfigEntry) -> None:
     await setup(hass, entry)
     assert hass.states.get("binary_sensor.hearth_a1b2c3_heater_locked").state == "off"
     assert hass.states.get("sensor.hearth_a1b2c3_heater_coolant_target").state == "unavailable"
     assert hass.states.get("sensor.hearth_a1b2c3_heater_starts").state == "unavailable"
+    # firmware 1.42 or older: nothing it can change
+    assert hass.states.get("number.hearth_a1b2c3_heater_coolant_target").state == "unavailable"
+    assert hass.states.get("switch.hearth_a1b2c3_heater_water_pump_in_standby").state == "unavailable"
+    assert hass.states.get("number.hearth_a1b2c3_water_pump_run_time").state == "unavailable"
 
 
 async def test_fuel_estimate(hass: HomeAssistant, box: AiohttpClientMocker, entry: MockConfigEntry) -> None:

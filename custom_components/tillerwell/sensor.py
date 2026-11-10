@@ -96,6 +96,18 @@ def _info(section: str, key: str, scale: float = 1) -> Callable[[HearthData], An
     return value
 
 
+def _heater_faults(data: HearthData) -> list[dict[str, Any]]:
+    report = _heater_info(data).get("report")
+    faults = report.get("faults") if isinstance(report, dict) else None
+    return faults if isinstance(faults, list) else []
+
+
+def _last_heater_fault(data: HearthData) -> str | None:
+    """The newest entry of the heater's own fault history (firmware 1.43); the whole list is an attribute."""
+    faults = _heater_faults(data)
+    return faults[0].get("name") if faults and isinstance(faults[0], dict) else None
+
+
 def _report_count(key: str, **kwargs: Any) -> HearthSensorDescription:
     return HearthSensorDescription(
         key=f"heater_{key}",
@@ -408,6 +420,14 @@ SENSORS: tuple[HearthSensorDescription, ...] = (
         info_section="version",
         value_fn=lambda data: _heater_info(data).get("version"),
     ),
+    HearthSensorDescription(
+        key="heater_last_fault",
+        translation_key="heater_last_fault",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        empty_value="None",
+        info_section="report",
+        value_fn=_last_heater_fault,
+    ),
     _report_count("starts"),
     _report_count("second_attempt", entity_registry_enabled_default=False),
     _report_count("no_ignition"),
@@ -463,6 +483,13 @@ class HearthSensor(HearthEntity, SensorEntity):
         ):
             return False
         return not self.entity_description.extended or bool(self.status.get("extended_active"))
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        """The heater's fault history, newest first, on its last-fault sensor."""
+        if self.entity_description.key == "heater_last_fault":
+            return {"faults": _heater_faults(self.coordinator.data)}
+        return None
 
     @property
     def native_unit_of_measurement(self) -> str | None:

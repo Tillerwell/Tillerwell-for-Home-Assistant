@@ -51,6 +51,19 @@ class HearthNumberDescription(NumberEntityDescription):
     up_to_tank: bool = False
 
 
+def _heater_setting(key: str) -> Callable[[dict[str, Any]], Any]:
+    """One of the heater's own settings (heater_info), only where the box can also change it (firmware 1.43, which
+    reports pump_minutes); unavailable until the heater has been read."""
+
+    def value(status: dict[str, Any]) -> Any:
+        if "pump_minutes" not in status:
+            return None
+        settings = (status.get("heater_info") or {}).get("settings")
+        return settings.get(key) if isinstance(settings, dict) else None
+
+    return value
+
+
 def _rate(level: str) -> Callable[[dict[str, Any]], Any]:
     return lambda status: (status.get("fuel_rates") or {}).get(level)
 
@@ -103,6 +116,34 @@ NUMBERS: tuple[HearthNumberDescription, ...] = (
         field="prevent_freezing_target",
         cmd="freeze_target",
         params_fn=lambda value, _status: {"value": value},
+    ),
+    # Firmware 1.43: how long Water pump only runs, and the heater's own coolant target (written into the heater).
+    HearthNumberDescription(
+        key="pump_minutes",
+        translation_key="pump_minutes",
+        device_class=NumberDeviceClass.DURATION,
+        native_unit_of_measurement=UnitOfTime.MINUTES,
+        native_min_value=1,
+        native_max_value=1440,
+        native_step=1,
+        entity_category=EntityCategory.CONFIG,
+        field="pump_minutes",
+        cmd="pump_minutes",
+        params_fn=lambda value, _status: {"value": int(value)},
+    ),
+    HearthNumberDescription(
+        key="heater_wait_temp_set",
+        translation_key="heater_wait_temp_set",
+        device_class=NumberDeviceClass.TEMPERATURE,
+        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+        native_min_value=20,
+        native_max_value=95,
+        native_step=1,
+        entity_category=EntityCategory.CONFIG,
+        field="heater_info",
+        cmd="heater_settings",
+        value_fn=_heater_setting("wait_temp"),
+        params_fn=lambda value, _status: {"wait_temp": int(value)},
     ),
     # Fuel estimate (RoamOS 1.0011 on)
     HearthNumberDescription(

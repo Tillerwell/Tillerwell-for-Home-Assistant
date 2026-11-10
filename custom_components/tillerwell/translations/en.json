@@ -79,6 +79,8 @@
       "start_thermostat": {"name": "Start thermostat"},
       "start_pump": {"name": "Water pump only"},
       "read_heater_info": {"name": "Read heater info"},
+      "prime_fuel": {"name": "Prime fuel"},
+      "fan_test": {"name": "Fan test"},
       "unlock_heater": {"name": "Unlock heater"},
       "stop": {"name": "Stop"},
       "tank_filled": {"name": "Tank filled to the top"}
@@ -94,7 +96,9 @@
       "fuel_rate_middle": {"name": "Fuel rate at middle"},
       "fuel_rate_high": {"name": "Fuel rate at high"},
       "tank_capacity": {"name": "Tank size"},
-      "tank_litres": {"name": "Fuel in tank"}
+      "tank_litres": {"name": "Fuel in tank"},
+      "pump_minutes": {"name": "Water pump run time"},
+      "heater_wait_temp_set": {"name": "Heater coolant target"}
     },
     "sensor": {
       "state": {
@@ -133,6 +137,7 @@
       "ext_fault_name": {"name": "Fault (extended)"},
       "heater_wait_temp": {"name": "Heater coolant target"},
       "heater_version": {"name": "Heater firmware"},
+      "heater_last_fault": {"name": "Heater's last recorded fault"},
       "heater_starts": {"name": "Heater starts"},
       "heater_second_attempt": {"name": "Heater starts needing a second try"},
       "heater_no_ignition": {"name": "Heater failed lights"},
@@ -168,6 +173,7 @@
       "prevent_freezing": {"name": "Prevent freezing"},
       "use_external_temp": {"name": "Use external temperature"},
       "bypass_mode": {"name": "Bypass"},
+      "pump_standby": {"name": "Heater water pump in standby"},
       "debug_mode": {"name": "Extended telemetry probing"}
     }
   },

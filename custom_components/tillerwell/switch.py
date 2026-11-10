@@ -24,6 +24,21 @@ class HearthSwitchDescription(SwitchEntityDescription):
 
     is_on_fn: Callable[[dict[str, Any]], bool | None]
     set_fn: Callable[[HearthCoordinator, bool], Coroutine[Any, Any, None]]
+    # Unavailable, not unknown, while there is nothing to show (the heater's own settings before a read).
+    needs_value: bool = False
+
+
+def _pump_standby(status: dict[str, Any]) -> bool | None:
+    """The heater's own water pump in standby, where the box can change it (firmware 1.43 reports pump_minutes)."""
+    if "pump_minutes" not in status:
+        return None
+    settings = (status.get("heater_info") or {}).get("settings")
+    value = settings.get("pump_standby") if isinstance(settings, dict) else None
+    return None if value is None else bool(value)
+
+
+async def _set_pump_standby(coordinator: HearthCoordinator, on: bool) -> None:
+    await coordinator.async_command("heater_settings", pump_standby=on)
 
 
 def _flag(field: str) -> Callable[[dict[str, Any]], bool | None]:
@@ -80,6 +95,14 @@ SWITCHES: tuple[HearthSwitchDescription, ...] = (
         set_fn=_command("bypass"),
     ),
     HearthSwitchDescription(
+        key="pump_standby",
+        translation_key="pump_standby",
+        entity_category=EntityCategory.CONFIG,
+        is_on_fn=_pump_standby,
+        set_fn=_set_pump_standby,
+        needs_value=True,
+    ),
+    HearthSwitchDescription(
         key="debug_mode",
         translation_key="debug_mode",
         entity_category=EntityCategory.CONFIG,
@@ -111,6 +134,11 @@ class HearthSwitch(HearthEntity, SwitchEntity):
     def is_on(self) -> bool | None:
         """Current state, None when unknown."""
         return self.entity_description.is_on_fn(self.status)
+
+    @property
+    def available(self) -> bool:
+        """A switch that needs a value is unavailable without one."""
+        return super().available and (not self.entity_description.needs_value or self.is_on is not None)
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn on."""
