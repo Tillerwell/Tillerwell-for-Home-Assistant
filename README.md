@@ -12,7 +12,7 @@ Control an Autoterm diesel heater from Home Assistant through a **Tillerwell Hea
 |---|---|
 | **Thermostat** (`climate`) | Heat arms the box's Auto thermostat, Off stops the heater. Two set points, a low and a high, form the comfort band. Shows the temperature the box is using and whether the burner is on |
 | **Heater** (switch) | On starts a timed preheat of the saved duration, off stops the heater properly |
-| **Start preheat / Start thermostat / Ventilate / Stop** (buttons) | One-shot commands |
+| **Start preheat / Start thermostat / Water pump only / Stop** (buttons) | One-shot commands. *Water pump only* runs the coolant circulation pump without burning (it was called *Ventilate* before 1.6.0, wrongly) |
 | **State, Coolant temperature, Controller temperature, Thermostat temperature, Run time** | Live status |
 | **Battery voltage** | The supply voltage the heater reports, always on (exact value from extended telemetry when that is switched on) |
 | **Fuel used, Fuel cost** (total and today), **Fuel rate** | Estimated diesel use, see below. Needs RoamOS 1.0011 or later on the box |
@@ -20,6 +20,8 @@ Control an Autoterm diesel heater from Home Assistant through a **Tillerwell Hea
 | **Power level, Heater mode, Burner hours, Starts** | What the heater says it is doing, and how much it has run (hours at low, middle and high are diagnostics) |
 | **Fuel price, Fuel calibration factor** (numbers) | Price per litre in your Home Assistant currency, and the estimate's correction. The four fuel rates are there too, disabled by default |
 | **Fault, Last fault** and a **Fault** problem sensor | Heater fault names as reported by the heater |
+| **Heater locked** (problem sensor), **Unlock heater** (button) | The heater locks itself after repeated failed starts or overheating; Unlock clears it once you've fixed the cause. The box only takes it while the heater is off. Needs Hearth firmware 1.42 |
+| **Read heater info** (button) and the **Heater …** diagnostics | Asks the heater for its own settings and lifetime report: its coolant target, its firmware, starts, failed lights and running time (time on high, middle and low, second tries and power cuts are disabled by default). *Unavailable* until you press the button once; the box also picks up the settings when the controller reads them at power-up. Read only. Needs Hearth firmware 1.42; the report's layout is not yet checked against a real heater |
 | **Next timer, Last timer event, Timers** | The schedule stored on the box |
 | **Prevent freezing** (switch + target) | Starts the heater at the frost floor even if you pressed Stop |
 | **Preheat duration, Preheat coolant limit** (numbers) | The box's saved settings |

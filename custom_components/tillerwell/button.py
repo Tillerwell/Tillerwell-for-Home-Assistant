@@ -49,6 +49,14 @@ async def _tank_filled(coordinator: HearthCoordinator) -> None:
     await coordinator.async_command("tank_filled")
 
 
+async def _read_heater_info(coordinator: HearthCoordinator) -> None:
+    await coordinator.async_command("heater_read")
+
+
+async def _unlock_heater(coordinator: HearthCoordinator) -> None:
+    await coordinator.async_command("heater_unlock")
+
+
 async def _reboot(coordinator: HearthCoordinator) -> None:
     try:
         await coordinator.client.reboot()
@@ -63,6 +71,20 @@ BUTTONS: tuple[HearthButtonDescription, ...] = (
     HearthButtonDescription(key="stop", translation_key="stop", press_fn=_stop),
     # Sets the fuel in the tank to its size; the box refuses it until the tank size is set.
     HearthButtonDescription(key="tank_filled", translation_key="tank_filled", press_fn=_tank_filled),
+    # Firmware 1.42: ask the heater for its own settings and lifetime report (the heater_info sensors fill in a few
+    # seconds later), and clear its lockout. The box refuses an unlock unless the heater is off.
+    HearthButtonDescription(
+        key="read_heater_info",
+        translation_key="read_heater_info",
+        entity_category=EntityCategory.CONFIG,
+        press_fn=_read_heater_info,
+    ),
+    HearthButtonDescription(
+        key="unlock_heater",
+        translation_key="unlock_heater",
+        entity_category=EntityCategory.CONFIG,
+        press_fn=_unlock_heater,
+    ),
     HearthButtonDescription(
         key="reboot",
         device_class=ButtonDeviceClass.RESTART,

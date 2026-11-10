@@ -48,6 +48,8 @@ class HearthSensorDescription(SensorEntityDescription):
     extended: bool = False
     # Unavailable on firmware whose status does not carry this field at all.
     required_field: str | None = None
+    # Firmware 1.42 heater_info: unavailable until the heater has answered a Read heater info.
+    info_section: str | None = None
 
 
 def _status(key: str) -> Callable[[HearthData], Any]:
@@ -76,6 +78,49 @@ def _supply_voltage(data: HearthData) -> Any:
     """The box's own reading of the supply, else the heater's (extended telemetry) on a box without the divider."""
     value = data.status.get("supply_voltage")
     return value if value is not None else data.status.get("ext_voltage")
+
+
+def _heater_info(data: HearthData) -> dict[str, Any]:
+    info = data.status.get("heater_info")
+    return info if isinstance(info, dict) else {}
+
+
+def _info(section: str, key: str, scale: float = 1) -> Callable[[HearthData], Any]:
+    """A value from heater_info's settings or report, scaled (seconds to hours)."""
+
+    def value(data: HearthData) -> Any:
+        part = _heater_info(data).get(section)
+        raw = part.get(key) if isinstance(part, dict) else None
+        return raw / scale if isinstance(raw, (int, float)) and scale != 1 else raw
+
+    return value
+
+
+def _report_count(key: str, **kwargs: Any) -> HearthSensorDescription:
+    return HearthSensorDescription(
+        key=f"heater_{key}",
+        translation_key=f"heater_{key}",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        info_section="report",
+        value_fn=_info("report", key),
+        **kwargs,
+    )
+
+
+def _report_hours(key: str, **kwargs: Any) -> HearthSensorDescription:
+    return HearthSensorDescription(
+        key=f"heater_{key}",
+        translation_key=f"heater_{key}",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        device_class=SensorDeviceClass.DURATION,
+        native_unit_of_measurement=UnitOfTime.HOURS,
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        suggested_display_precision=1,
+        info_section="report",
+        value_fn=_info("report", key, 3600),
+        **kwargs,
+    )
 
 
 def _temperature(key: str, **kwargs: Any) -> HearthSensorDescription:
@@ -345,6 +390,32 @@ SENSORS: tuple[HearthSensorDescription, ...] = (
         entity_registry_enabled_default=False,
         value_fn=_status("ext_fault_name"),
     ),
+    # Read from the heater itself (firmware 1.42, Read heater info). The report's layout comes from Autoterm's test
+    # tool and is not yet checked against a real heater.
+    HearthSensorDescription(
+        key="heater_wait_temp",
+        translation_key="heater_wait_temp",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        device_class=SensorDeviceClass.TEMPERATURE,
+        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+        info_section="settings",
+        value_fn=_info("settings", "wait_temp"),
+    ),
+    HearthSensorDescription(
+        key="heater_version",
+        translation_key="heater_version",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        info_section="version",
+        value_fn=lambda data: _heater_info(data).get("version"),
+    ),
+    _report_count("starts"),
+    _report_count("second_attempt", entity_registry_enabled_default=False),
+    _report_count("no_ignition"),
+    _report_count("power_cuts", entity_registry_enabled_default=False),
+    _report_hours("total_s"),
+    _report_hours("high_s", entity_registry_enabled_default=False),
+    _report_hours("middle_s", entity_registry_enabled_default=False),
+    _report_hours("low_s", entity_registry_enabled_default=False),
 )
 
 
@@ -385,6 +456,11 @@ class HearthSensor(HearthEntity, SensorEntity):
         if not super().available:
             return False
         if self.entity_description.required_field and self.entity_description.required_field not in self.status:
+            return False
+        if (
+            self.entity_description.info_section
+            and _heater_info(self.coordinator.data).get(self.entity_description.info_section) is None
+        ):
             return False
         return not self.entity_description.extended or bool(self.status.get("extended_active"))
 

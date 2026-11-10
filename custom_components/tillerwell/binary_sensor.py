@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
+from typing import Any
 
 from homeassistant.components.binary_sensor import (
     BinarySensorDeviceClass,
@@ -26,11 +28,23 @@ class HearthBinarySensorDescription(BinarySensorEntityDescription):
     field: str | None = None
     # Only filled by extended telemetry: unavailable until the heater actually sends it.
     extended: bool = False
+    # Worked out from several fields instead of read from one; unavailable when it returns None.
+    value_fn: Callable[[dict[str, Any]], bool | None] | None = None
+
+
+def _locked(status: dict[str, Any]) -> bool | None:
+    """Locked out after repeated failed starts or overheating: state 1, substate 1 ("locked" in the vendor's table)."""
+    if status.get("state_raw") is None:
+        return None
+    return status.get("state_raw") == 1 and status.get("substate") == 1
 
 
 BINARY_SENSORS: tuple[HearthBinarySensorDescription, ...] = (
     HearthBinarySensorDescription(
         key="fault_active", translation_key="fault_active", device_class=BinarySensorDeviceClass.PROBLEM
+    ),
+    HearthBinarySensorDescription(
+        key="locked", translation_key="locked", device_class=BinarySensorDeviceClass.PROBLEM, value_fn=_locked
     ),
     HearthBinarySensorDescription(
         key="burner_active", translation_key="burner_active", device_class=BinarySensorDeviceClass.HEAT
@@ -100,6 +114,8 @@ class HearthBinarySensor(HearthEntity, BinarySensorEntity):
     @property
     def is_on(self) -> bool | None:
         """True, False, or None when the box has not reported it."""
+        if self.entity_description.value_fn is not None:
+            return self.entity_description.value_fn(self.status)
         value = self.status.get(self.entity_description.field or self.entity_description.key)
         return None if value is None else bool(value)
 
