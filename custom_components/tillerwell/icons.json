@@ -1,6 +1,8 @@
 {
   "entity": {
     "binary_sensor": {
+      "heater_care_sensor_stuck": {"default": "mdi:thermometer-alert"},
+      "heater_care_no_reading": {"default": "mdi:thermometer-off"},
       "clock_ok": {"default": "mdi:clock-alert-outline", "state": {"on": "mdi:clock-check-outline"}},
       "controller_seen": {"default": "mdi:remote-off", "state": {"on": "mdi:remote"}},
       "extended_active": {"default": "mdi:radar"},
@@ -9,6 +11,7 @@
       "standalone": {"default": "mdi:link-off"}
     },
     "button": {
+      "heater_care_reset": {"default": "mdi:restore"},
       "start_preheat": {"default": "mdi:fire"},
       "start_pump": {"default": "mdi:water-pump"},
       "read_heater_info": {"default": "mdi:database-arrow-down-outline"},
@@ -35,6 +38,13 @@
       "heater_wait_temp_set": {"default": "mdi:thermometer-water"}
     },
     "sensor": {
+      "heater_care_work_low": {"default": "mdi:thermometer-chevron-up"},
+      "heater_care_min_run_left": {"default": "mdi:timer-lock-outline"},
+      "heater_care_min_off_left": {"default": "mdi:timer-pause-outline"},
+      "heater_care_rise_rate": {"default": "mdi:trending-up"},
+      "heater_care_holding": {"default": "mdi:hand-back-left-outline"},
+      "heater_care_learned_width": {"default": "mdi:arrow-expand-vertical"},
+      "heater_care_early_stop_unseen": {"default": "mdi:alert-circle-outline"},
       "auto_start_at": {"default": "mdi:thermometer-auto"},
       "auto_note": {"default": "mdi:message-text-outline"},
       "elapsed_min": {"default": "mdi:timer-outline"},

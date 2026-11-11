@@ -67,11 +67,17 @@ The heater doesn't report its fuel pump to the box, so the box estimates fuel: t
 
 ## Thermostat
 
-The box runs the thermostat itself, so it keeps working if Home Assistant is off. It behaves like the Comfort Controller set to one degree below the top of your range. When you set **Heat**, the heater starts straight away if the cabin is at or below high minus 1, and otherwise waits until it falls that far. Every run goes on until the cabin reaches **high**; the heater is never stopped inside the range. After the first run it stays off until the cabin falls to **low**, then runs back up to **high**, and so on. Fewer, longer runs avoid the short cycling that cokes up the burner and glow plug. **Next start temperature** shows where the next start will happen (RoamOS 1.0038 and later; older firmware started at low minus a start buffer and stopped at high plus a stop buffer).
+The box runs the thermostat itself, so it keeps working if Home Assistant is off.
 
-The set points are whole degrees from 0 to 30, at least the box's narrowest allowed range apart (3 degrees unless it has been changed).
+**Heater Care (firmware 1.47 and later).** Your range can be as narrow as 1 degree (a new box starts at 20 to 21). Every run starts at or below the bottom of the working range and goes on until the cabin reaches **high**; the heater is never stopped inside the range. Heater Care learns how fast the space heats and, if the heater would otherwise stop and start too often, lowers the bottom of the working range (never the top, and never wider than 4 degrees). On the controller's whole-degree sensor the working range is at least 2 degrees. The box keeps each run to at least 30 minutes from when the flame is established (20 for frost protection) and rests the heater 20 minutes between runs: heaters like this last longer with fewer, longer runs. A fault, the room reaching 5 degrees over your range, or a stop someone asks for always ends a run straight away.
 
-If the heater was started some other way (the Comfort Controller, a timer, the Heater switch), the thermostat shows **Heat** while it runs. Setting **Off** switches Auto off first and then stops the heater, because otherwise the box would start it again.
+The **Heater Care** sensors show the working range (**Heater Care start temperature**), **Minimum run left**, **Minimum rest left**, why a stop is waiting (**Heater Care holding stop**), the space's **Heating speed**, and **Early stops**: stops asked for inside a run's 30 minutes (its attribute names where the last one came from). **Room sensor stuck** and **No temperature reading** flag sensor trouble. **Reset Heater Care learning** (a disabled-by-default button) forgets what was learned.
+
+Home Assistant cannot ask "let it finish?", so setting **Off** (or turning the Heater switch off) stops the heater at once; the box logs it as an early stop from Home Assistant and the Tillerwell app explains it the next time it opens. Lowering the range from Home Assistant lets a run inside its first 30 minutes finish them first.
+
+On older firmware the thermostat behaves like the Comfort Controller set to one degree below the top of your range, and the narrowest range is the box's hysteresis setting (3 degrees unless changed).
+
+The set points are whole degrees from 0 to 30. If the heater was started some other way (the Comfort Controller, a timer, the Heater switch), the thermostat shows **Heat** while it runs. Setting **Off** switches Auto off first and then stops the heater, because otherwise the box would start it again.
 
 ### Use a room sensor you already have
 

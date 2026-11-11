@@ -69,6 +69,11 @@ async def _unlock_heater(coordinator: HearthCoordinator) -> None:
     await coordinator.async_command("heater_unlock")
 
 
+async def _reset_learning(coordinator: HearthCoordinator) -> None:
+    """Heater Care (firmware 1.47): forget what was learned about how fast the space heats."""
+    await coordinator.async_command("thermo_learn_reset")
+
+
 async def _reboot(coordinator: HearthCoordinator) -> None:
     try:
         await coordinator.client.reboot()
@@ -101,6 +106,13 @@ BUTTONS: tuple[HearthButtonDescription, ...] = (
         translation_key="unlock_heater",
         entity_category=EntityCategory.CONFIG,
         press_fn=_unlock_heater,
+    ),
+    HearthButtonDescription(
+        key="heater_care_reset",
+        translation_key="heater_care_reset",
+        entity_category=EntityCategory.CONFIG,
+        entity_registry_enabled_default=False,
+        press_fn=_reset_learning,
     ),
     HearthButtonDescription(
         key="reboot",

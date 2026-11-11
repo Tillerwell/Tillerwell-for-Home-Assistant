@@ -581,3 +581,124 @@ def test_every_translation_key_exists() -> None:
     for platform, keys in wanted.items():
         missing = [k for k in keys if k not in en[platform]]
         assert not missing, f"{platform}: {missing}"
+
+
+THERMO = {
+    "work_low": 19.5,
+    "work_high": 21.0,
+    "learned_width": 1.5,
+    "min_width": 1.0,
+    "sensor": "external",
+    "ceiling": 26.0,
+    "at_limit": None,
+    "reason": "widened",
+    "min_run_left_s": 480,
+    "min_off_left_s": 0,
+    "holding": "top",
+    "run_on_at": 1762871100,
+    "flame_on_at": 1762871400,
+    "sensor_stuck": False,
+    "no_reading": False,
+    "rise_rate": 0.05,
+    "warmup_typical_s": 360,
+    "cool_typical_s": 2700,
+    "dip_below": 0,
+    "early_stop_unseen": 1,
+    "last_run_end": "top",
+    "last_early_stop": {"at": 1762871940, "after_s": 540, "source": "matter"},
+}
+
+
+def heater_care_box(aioclient_mock: AiohttpClientMocker, **status: object) -> None:
+    aioclient_mock.get(f"{BASE}/api/info", json=INFO)
+    aioclient_mock.get(
+        f"{BASE}/api/status",
+        json={**STATUS, "hyst_min": 0.5, "hyst_max": 0.5, "thermo": THERMO, **status},
+    )
+    aioclient_mock.get(f"{BASE}/api/timers", json=TIMERS)
+    aioclient_mock.post(f"{BASE}/api/cmd", json={"ok": True})
+
+
+async def test_heater_care_entities(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, entry: MockConfigEntry
+) -> None:
+    heater_care_box(aioclient_mock, state="late-run", burner_active=True, auto_enabled=True)
+    await setup(hass, entry)
+    assert hass.states.get("sensor.hearth_a1b2c3_heater_care_start_temperature").state == "19.5"
+    assert hass.states.get("sensor.hearth_a1b2c3_minimum_run_left").state == "8.0"
+    assert hass.states.get("sensor.hearth_a1b2c3_minimum_rest_left").state == "0.0"
+    assert hass.states.get("sensor.hearth_a1b2c3_heater_care_holding_stop").state == "top"
+    early = hass.states.get("sensor.hearth_a1b2c3_early_stops")
+    assert early.state == "1" and early.attributes["last_early_stop"]["source"] == "matter"
+    assert hass.states.get("binary_sensor.hearth_a1b2c3_no_temperature_reading").state == "off"
+
+
+async def test_heater_care_off_stops_at_once_and_says_so(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, entry: MockConfigEntry
+) -> None:
+    heater_care_box(aioclient_mock, state="running", burner_active=True, auto_enabled=True)
+    await setup(hass, entry)
+    await hass.services.async_call(
+        CLIMATE, SERVICE_SET_HVAC_MODE, {ATTR_ENTITY_ID: CLIMATE_ID, ATTR_HVAC_MODE: "off"}, blocking=True
+    )
+    # Home Assistant cannot ask "let it finish?": the box stops at once and logs it as an early stop from here
+    assert sent(aioclient_mock) == [
+        {"cmd": "auto", "enabled": False, "finish_run": False, "source": "home_assistant"},
+        {"cmd": "stop", "source": "home_assistant"},
+    ]
+
+
+async def test_heater_care_one_degree_range(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, entry: MockConfigEntry
+) -> None:
+    heater_care_box(aioclient_mock)
+    await setup(hass, entry)
+    await hass.services.async_call(
+        CLIMATE,
+        SERVICE_SET_TEMPERATURE,
+        {ATTR_ENTITY_ID: CLIMATE_ID, ATTR_TARGET_TEMP_LOW: 20, ATTR_TARGET_TEMP_HIGH: 21},
+        blocking=True,
+    )
+    assert sent(aioclient_mock) == [{"cmd": "auto_range", "low": 20, "high": 21, "source": "home_assistant"}]
+
+
+async def test_heater_care_reset_button(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, entry: MockConfigEntry
+) -> None:
+    heater_care_box(aioclient_mock)
+    entry.add_to_hass(hass)
+    er.async_get(hass).async_get_or_create(
+        BUTTON,
+        DOMAIN,
+        f"{entry.unique_id}_heater_care_reset",
+        suggested_object_id="hearth_a1b2c3_reset_heater_care_learning",
+        disabled_by=None,
+        config_entry=entry,
+    )
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    await hass.services.async_call(
+        BUTTON, SERVICE_PRESS, {ATTR_ENTITY_ID: "button.hearth_a1b2c3_reset_heater_care_learning"}, blocking=True
+    )
+    assert sent(aioclient_mock) == [{"cmd": "thermo_learn_reset"}]
+
+
+async def test_heater_care_unavailable_on_older_firmware(
+    hass: HomeAssistant, box: AiohttpClientMocker, entry: MockConfigEntry
+) -> None:
+    await setup(hass, entry)
+    assert hass.states.get("sensor.hearth_a1b2c3_minimum_run_left").state == "unavailable"
+
+
+async def test_heater_care_switch_off_stops_at_once(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, entry: MockConfigEntry
+) -> None:
+    heater_care_box(aioclient_mock, state="running", burner_active=True, auto_enabled=True)
+    await setup(hass, entry)
+    await hass.services.async_call(
+        SWITCH, SERVICE_TURN_OFF, {ATTR_ENTITY_ID: "switch.hearth_a1b2c3_heater"}, blocking=True
+    )
+    assert sent(aioclient_mock) == [
+        {"cmd": "auto", "enabled": False, "finish_run": False, "source": "home_assistant"},
+        {"cmd": "stop", "source": "home_assistant"},
+    ]

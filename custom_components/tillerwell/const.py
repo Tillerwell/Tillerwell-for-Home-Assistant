@@ -49,6 +49,11 @@ MAX_FUEL_FACTOR = 5
 MAX_FUEL_RATE = 5
 MAX_TANK_LITRES = 2000
 
+# Heater Care (firmware 1.47): the status carries a `thermo` object; commands say who sent them, for the box's
+# early-stop log.
+HEATER_CARE_FIELD = "thermo"
+SOURCE = "home_assistant"
+
 SERVICE_SET_TIMERS = "set_timers"
 SERVICE_SET_EXTERNAL_TEMPERATURE = "set_external_temperature"
 ATTR_TIMERS = "timers"

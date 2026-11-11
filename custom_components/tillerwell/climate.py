@@ -21,10 +21,12 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from .const import (
     ACTIVE_STATES,
     ATTR_TIMERS,
+    HEATER_CARE_FIELD,
     MAX_AUTO_TEMP,
     MIN_AUTO_TEMP,
     SERVICE_SET_EXTERNAL_TEMPERATURE,
     SERVICE_SET_TIMERS,
+    SOURCE,
 )
 from .coordinator import HearthConfigEntry, HearthCoordinator
 from .entity import HearthEntity
@@ -155,11 +157,16 @@ class HearthClimate(HearthEntity, ClimateEntity):
             raise ServiceValidationError("Give both a low and a high temperature")
         if low >= high:
             raise ServiceValidationError("The low temperature must be below the high temperature")
-        # hyst_min + hyst_max no longer moves the start or stop points; it is only the narrowest range the box accepts.
+        # hyst_min + hyst_max is only the narrowest range the box accepts: 1° with Heater Care (firmware 1.47, which
+        # reports 0.5 + 0.5), which widens the working range itself.
         hyst_min, hyst_max = self.status.get("hyst_min"), self.status.get("hyst_max")
         if hyst_min is not None and hyst_max is not None and high - low < hyst_min + hyst_max:
             raise ServiceValidationError(f"Keep the low and high temperatures at least {hyst_min + hyst_max:g}° apart")
-        await self.coordinator.async_command("auto_range", low=low, high=high)
+        if HEATER_CARE_FIELD in self.status:
+            # no way to ask "let it finish?" here: a run inside its 30 minutes finishes them (the box's default)
+            await self.coordinator.async_command("auto_range", low=low, high=high, source=SOURCE)
+        else:
+            await self.coordinator.async_command("auto_range", low=low, high=high)
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         """Heat arms Auto; Off switches Auto off and stops the heater."""

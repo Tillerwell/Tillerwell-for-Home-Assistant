@@ -39,7 +39,32 @@ def _locked(status: dict[str, Any]) -> bool | None:
     return status.get("state_raw") == 1 and status.get("substate") == 1
 
 
+def _thermo_flag(key: str) -> Callable[[dict[str, Any]], bool | None]:
+    """A flag from the Heater Care object (firmware 1.47); unknown on older firmware."""
+
+    def read(status: dict[str, Any]) -> bool | None:
+        thermo = status.get("thermo")
+        return bool(thermo.get(key)) if isinstance(thermo, dict) else None
+
+    return read
+
+
 BINARY_SENSORS: tuple[HearthBinarySensorDescription, ...] = (
+    # Heater Care: the room sensor has not changed for 15 min while heating, so the controller's reading is used;
+    # and no usable temperature at all (a run then stops at the end of its minimum run).
+    HearthBinarySensorDescription(
+        key="heater_care_sensor_stuck",
+        translation_key="heater_care_sensor_stuck",
+        device_class=BinarySensorDeviceClass.PROBLEM,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        value_fn=_thermo_flag("sensor_stuck"),
+    ),
+    HearthBinarySensorDescription(
+        key="heater_care_no_reading",
+        translation_key="heater_care_no_reading",
+        device_class=BinarySensorDeviceClass.PROBLEM,
+        value_fn=_thermo_flag("no_reading"),
+    ),
     HearthBinarySensorDescription(
         key="fault_active", translation_key="fault_active", device_class=BinarySensorDeviceClass.PROBLEM
     ),

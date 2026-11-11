@@ -62,6 +62,8 @@
   },
   "entity": {
     "binary_sensor": {
+      "heater_care_sensor_stuck": {"name": "Room sensor stuck"},
+      "heater_care_no_reading": {"name": "No temperature reading"},
       "fault_active": {"name": "Fault"},
       "locked": {"name": "Heater locked"},
       "burner_active": {"name": "Burner"},
@@ -75,6 +77,7 @@
       "ext_glow_plug": {"name": "Glow plug"}
     },
     "button": {
+      "heater_care_reset": {"name": "Reset Heater Care learning"},
       "start_preheat": {"name": "Start preheat"},
       "start_thermostat": {"name": "Start thermostat"},
       "start_pump": {"name": "Water pump only"},
@@ -101,6 +104,22 @@
       "heater_wait_temp_set": {"name": "Heater coolant target"}
     },
     "sensor": {
+      "heater_care_work_low": {"name": "Heater Care start temperature"},
+      "heater_care_work_high": {"name": "Heater Care stop temperature"},
+      "heater_care_learned_width": {"name": "Heater Care learned width"},
+      "heater_care_ceiling": {"name": "Heater Care ceiling"},
+      "heater_care_min_run_left": {"name": "Minimum run left"},
+      "heater_care_min_off_left": {"name": "Minimum rest left"},
+      "heater_care_warmup_typical": {"name": "Typical warm-up"},
+      "heater_care_cool_typical": {"name": "Typical cool-down"},
+      "heater_care_rise_rate": {"name": "Heating speed"},
+      "heater_care_dip_below": {"name": "Dip below range"},
+      "heater_care_holding": {"name": "Heater Care holding stop"},
+      "heater_care_reason": {"name": "Heater Care range reason"},
+      "heater_care_sensor": {"name": "Heater Care sensor"},
+      "heater_care_at_limit": {"name": "Heater Care limit"},
+      "heater_care_last_run_end": {"name": "Last run ended"},
+      "heater_care_early_stop_unseen": {"name": "Early stops"},
       "state": {
         "name": "State",
         "state": {

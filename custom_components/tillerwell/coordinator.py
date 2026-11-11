@@ -24,11 +24,13 @@ from .const import (
     CONF_EXTERNAL_TEMP_ENTITY,
     DOMAIN,
     EXTERNAL_TEMP_REFRESH,
+    HEATER_CARE_FIELD,
     INFO_INTERVAL,
     MANUFACTURER,
     MODEL,
     REDISCOVER_INTERVAL,
     SCAN_INTERVAL,
+    SOURCE,
     STATE_IDLE,
     TIMERS_INTERVAL,
 )
@@ -238,12 +240,23 @@ class HearthCoordinator(DataUpdateCoordinator[HearthData]):
         await self.async_request_refresh()
 
     async def async_stop(self) -> None:
-        """Stop the heater. Auto must be switched off first or the box starts it again."""
+        """Stop the heater. Auto must be switched off first or the box starts it again.
+
+        Home Assistant cannot ask "let it finish?", so on firmware with Heater Care (1.47) a stop goes at once and the
+        box logs it as an early stop from Home Assistant; the apps explain it the next time they open.
+        """
         status = self.data.status if self.data else {}
+        care = HEATER_CARE_FIELD in status
         if status.get("auto_enabled"):
-            await self.async_command("auto", enabled=False)
+            if care:
+                await self.async_command("auto", enabled=False, finish_run=False, source=SOURCE)
+            else:
+                await self.async_command("auto", enabled=False)
         if status.get("state") not in (None, STATE_IDLE):
-            await self.async_command("stop")
+            if care:
+                await self.async_command("stop", source=SOURCE)
+            else:
+                await self.async_command("stop")
 
     async def async_set_timers(self, timers: list[dict[str, Any]]) -> None:
         """Replace the box's timer list. The box checks every rule and says why if it refuses."""

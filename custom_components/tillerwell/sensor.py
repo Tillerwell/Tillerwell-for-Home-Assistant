@@ -80,6 +80,53 @@ def _supply_voltage(data: HearthData) -> Any:
     return value if value is not None else data.status.get("ext_voltage")
 
 
+def _thermo(key: str, scale: float = 1) -> Callable[[HearthData], Any]:
+    """A value from the Heater Care object (firmware 1.47), seconds scaled to minutes where asked."""
+
+    def value(data: HearthData) -> Any:
+        thermo = data.status.get("thermo")
+        raw = thermo.get(key) if isinstance(thermo, dict) else None
+        return round(raw / scale, 1) if isinstance(raw, (int, float)) and scale != 1 else raw
+
+    return value
+
+
+def _care_temperature(key: str, **kwargs: Any) -> HearthSensorDescription:
+    return HearthSensorDescription(
+        key=f"heater_care_{key}",
+        translation_key=f"heater_care_{key}",
+        device_class=kwargs.pop("device_class", SensorDeviceClass.TEMPERATURE),
+        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+        required_field="thermo",
+        value_fn=_thermo(key),
+        **kwargs,
+    )
+
+
+def _care_minutes(key: str, **kwargs: Any) -> HearthSensorDescription:
+    return HearthSensorDescription(
+        key=f"heater_care_{key}",
+        translation_key=f"heater_care_{key}",
+        device_class=SensorDeviceClass.DURATION,
+        native_unit_of_measurement=UnitOfTime.MINUTES,
+        suggested_display_precision=0,
+        required_field="thermo",
+        value_fn=_thermo(f"{key}_s", 60),
+        **kwargs,
+    )
+
+
+def _care_text(key: str, **kwargs: Any) -> HearthSensorDescription:
+    return HearthSensorDescription(
+        key=f"heater_care_{key}",
+        translation_key=f"heater_care_{key}",
+        required_field="thermo",
+        empty_value="None",
+        value_fn=_thermo(key),
+        **kwargs,
+    )
+
+
 def _heater_info(data: HearthData) -> dict[str, Any]:
     info = data.status.get("heater_info")
     return info if isinstance(info, dict) else {}
@@ -197,6 +244,37 @@ SENSORS: tuple[HearthSensorDescription, ...] = (
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         required_field="auto_start_at",
         value_fn=_status("auto_start_at"),
+    ),
+    # Heater Care (firmware 1.47): the working range the thermostat runs on, the run locks, and what it learned.
+    _care_temperature("work_low"),
+    _care_temperature("work_high", entity_registry_enabled_default=False),
+    _care_temperature("learned_width", device_class=None, entity_category=EntityCategory.DIAGNOSTIC),
+    _care_temperature("ceiling", entity_category=EntityCategory.DIAGNOSTIC, entity_registry_enabled_default=False),
+    _care_minutes("min_run_left"),
+    _care_minutes("min_off_left"),
+    _care_minutes("warmup_typical", entity_category=EntityCategory.DIAGNOSTIC, entity_registry_enabled_default=False),
+    _care_minutes("cool_typical", entity_category=EntityCategory.DIAGNOSTIC, entity_registry_enabled_default=False),
+    HearthSensorDescription(
+        key="heater_care_rise_rate",
+        translation_key="heater_care_rise_rate",
+        native_unit_of_measurement="°C/min",
+        suggested_display_precision=3,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        required_field="thermo",
+        value_fn=_thermo("rise_rate"),
+    ),
+    _care_temperature("dip_below", device_class=None, entity_category=EntityCategory.DIAGNOSTIC),
+    _care_text("holding"),
+    _care_text("reason", entity_category=EntityCategory.DIAGNOSTIC),
+    _care_text("sensor", entity_category=EntityCategory.DIAGNOSTIC),
+    _care_text("at_limit", entity_category=EntityCategory.DIAGNOSTIC),
+    _care_text("last_run_end", entity_category=EntityCategory.DIAGNOSTIC),
+    HearthSensorDescription(
+        key="heater_care_early_stop_unseen",
+        translation_key="heater_care_early_stop_unseen",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        required_field="thermo",
+        value_fn=_thermo("early_stop_unseen"),
     ),
     HearthSensorDescription(
         key="auto_note",
@@ -489,6 +567,10 @@ class HearthSensor(HearthEntity, SensorEntity):
         """The heater's fault history, newest first, on its last-fault sensor."""
         if self.entity_description.key == "heater_last_fault":
             return {"faults": _heater_faults(self.coordinator.data)}
+        if self.entity_description.key == "heater_care_early_stop_unseen":
+            thermo = self.status.get("thermo")
+            last = thermo.get("last_early_stop") if isinstance(thermo, dict) else None
+            return {"last_early_stop": last} if isinstance(last, dict) else None
         return None
 
     @property
