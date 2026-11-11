@@ -10,8 +10,6 @@ from homeassistant.components.button import DOMAIN as BUTTON
 from homeassistant.components.button import SERVICE_PRESS
 from homeassistant.components.climate import (
     ATTR_HVAC_MODE,
-    ATTR_TARGET_TEMP_HIGH,
-    ATTR_TARGET_TEMP_LOW,
     SERVICE_SET_HVAC_MODE,
     SERVICE_SET_TEMPERATURE,
 )
@@ -23,7 +21,7 @@ from homeassistant.components.number import DOMAIN as NUMBER
 from homeassistant.components.switch import DOMAIN as SWITCH
 from homeassistant.components.switch import SERVICE_TURN_OFF, SERVICE_TURN_ON
 from homeassistant.config_entries import ConfigEntryState
-from homeassistant.const import ATTR_ENTITY_ID
+from homeassistant.const import ATTR_ENTITY_ID, ATTR_TEMPERATURE
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import device_registry as dr
@@ -57,8 +55,7 @@ async def test_entities(hass: HomeAssistant, box: AiohttpClientMocker, entry: Mo
     climate = hass.states.get(CLIMATE_ID)
     assert climate.state == "off"
     assert climate.attributes["current_temperature"] == 17
-    assert climate.attributes["target_temp_low"] == 19
-    assert climate.attributes["target_temp_high"] == 21
+    assert climate.attributes["temperature"] == 21
     assert climate.attributes["hvac_action"] == "off"
 
     assert hass.states.get("sensor.hearth_a1b2c3_state").state == "idle"
@@ -159,24 +156,17 @@ async def test_temperature_range(hass: HomeAssistant, box: AiohttpClientMocker, 
     await hass.services.async_call(
         CLIMATE,
         SERVICE_SET_TEMPERATURE,
-        {ATTR_ENTITY_ID: CLIMATE_ID, ATTR_TARGET_TEMP_LOW: 18, ATTR_TARGET_TEMP_HIGH: 22},
+        {ATTR_ENTITY_ID: CLIMATE_ID, ATTR_TEMPERATURE: 22},
         blocking=True,
     )
-    assert sent(box) == [{"cmd": "auto_range", "low": 18, "high": 22}]
+    # one set temperature: the low end sits hyst_min + hyst_max (3° on this older box) below it
+    assert sent(box) == [{"cmd": "auto_range", "low": 19, "high": 22}]
 
-    with pytest.raises(ServiceValidationError):
-        await hass.services.async_call(
-            CLIMATE,
-            SERVICE_SET_TEMPERATURE,
-            {ATTR_ENTITY_ID: CLIMATE_ID, ATTR_TARGET_TEMP_LOW: 22, ATTR_TARGET_TEMP_HIGH: 20},
-            blocking=True,
-        )
-    # hyst_min + hyst_max (3°) is the narrowest range the box accepts
     with pytest.raises(ServiceValidationError, match="at least 3°"):
         await hass.services.async_call(
             CLIMATE,
             SERVICE_SET_TEMPERATURE,
-            {ATTR_ENTITY_ID: CLIMATE_ID, ATTR_TARGET_TEMP_LOW: 20, ATTR_TARGET_TEMP_HIGH: 22},
+            {ATTR_ENTITY_ID: CLIMATE_ID, ATTR_TEMPERATURE: 2},
             blocking=True,
         )
     assert len(sent(box)) == 1
@@ -656,7 +646,7 @@ async def test_heater_care_one_degree_range(
     await hass.services.async_call(
         CLIMATE,
         SERVICE_SET_TEMPERATURE,
-        {ATTR_ENTITY_ID: CLIMATE_ID, ATTR_TARGET_TEMP_LOW: 20, ATTR_TARGET_TEMP_HIGH: 21},
+        {ATTR_ENTITY_ID: CLIMATE_ID, ATTR_TEMPERATURE: 21},
         blocking=True,
     )
     assert sent(aioclient_mock) == [{"cmd": "auto_range", "low": 20, "high": 21, "source": "home_assistant"}]

@@ -101,7 +101,7 @@ class HearthClimate(HearthEntity, ClimateEntity):
     _attr_native_temperature_unit = UnitOfTemperature.CELSIUS
     _attr_hvac_modes = [HVACMode.OFF, HVACMode.HEAT]
     _attr_supported_features = (
-        ClimateEntityFeature.TARGET_TEMPERATURE_RANGE | ClimateEntityFeature.TURN_ON | ClimateEntityFeature.TURN_OFF
+        ClimateEntityFeature.TARGET_TEMPERATURE | ClimateEntityFeature.TURN_ON | ClimateEntityFeature.TURN_OFF
     )
     _attr_min_temp = MIN_AUTO_TEMP
     _attr_max_temp = MAX_AUTO_TEMP
@@ -140,28 +140,21 @@ class HearthClimate(HearthEntity, ClimateEntity):
         return PRECISION_TENTHS if self.status.get("external_temp_active") else PRECISION_WHOLE
 
     @property
-    def native_target_temperature_low(self) -> float | None:
-        """Bottom of the comfort band."""
-        return self.status.get("auto_low")
-
-    @property
-    def native_target_temperature_high(self) -> float | None:
-        """Top of the comfort band."""
+    def native_target_temperature(self) -> float | None:
+        """The set temperature: the top of the box's range, where each run stops."""
         return self.status.get("auto_high")
 
     async def async_set_temperature(self, **kwargs: Any) -> None:
-        """Set the comfort band."""
-        low = kwargs.get("target_temp_low", self.native_target_temperature_low)
-        high = kwargs.get("target_temp_high", self.native_target_temperature_high)
-        if low is None or high is None:
-            raise ServiceValidationError("Give both a low and a high temperature")
-        if low >= high:
-            raise ServiceValidationError("The low temperature must be below the high temperature")
-        # hyst_min + hyst_max is only the narrowest range the box accepts: 1° with Heater Care (firmware 1.47, which
-        # reports 0.5 + 0.5), which widens the working range itself.
-        hyst_min, hyst_max = self.status.get("hyst_min"), self.status.get("hyst_max")
-        if hyst_min is not None and hyst_max is not None and high - low < hyst_min + hyst_max:
-            raise ServiceValidationError(f"Keep the low and high temperatures at least {hyst_min + hyst_max:g}° apart")
+        """Set the one temperature to keep. The box's range sits just below it."""
+        high = kwargs.get(ATTR_TEMPERATURE)
+        if high is None:
+            raise ServiceValidationError("Give a temperature")
+        # hyst_min + hyst_max is the narrowest range the box accepts: 1° with Heater Care (firmware 1.47, which
+        # reports 0.5 + 0.5), which lowers the bottom of the working range itself. The low end sits that far below.
+        gap = (self.status.get("hyst_min") or 0.5) + (self.status.get("hyst_max") or 0.5)
+        if high < gap:
+            raise ServiceValidationError(f"The temperature must be at least {gap:g}°")
+        low = high - gap
         if HEATER_CARE_FIELD in self.status:
             # no way to ask "let it finish?" here: a run inside its 30 minutes finishes them (the box's default)
             await self.coordinator.async_command("auto_range", low=low, high=high, source=SOURCE)

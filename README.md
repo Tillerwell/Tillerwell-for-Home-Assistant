@@ -10,7 +10,7 @@ Control an Autoterm diesel heater from Home Assistant through a **Tillerwell Hea
 
 | Entity | What it does |
 |---|---|
-| **Thermostat** (`climate`) | Heat arms the box's Auto thermostat, Off stops the heater. Two set points, a low and a high, form the comfort band. Shows the temperature the box is using and whether the burner is on |
+| **Thermostat** (`climate`) | Heat arms the box's Auto thermostat, Off stops the heater. One set temperature: each run heats up to it, and the next starts about a degree below. Shows the temperature the box is using and whether the burner is on |
 | **Heater** (switch) | On starts a timed preheat of the saved duration, off stops the heater properly |
 | **Start preheat / Start thermostat / Water pump only / Stop** (buttons) | One-shot commands. *Water pump only* runs the coolant circulation pump without burning, for the *Water pump run time* (number, Hearth firmware 1.43; 40 minutes before). It was called *Ventilate* before 1.6.0, wrongly. Stop always sends a stop, so it also ends a prime or a fan test |
 | **Prime fuel** (button), **Fan test** (button, configuration) | Prime pushes diesel through without lighting, to clear the air after the tank ran dry; Fan test spins the blower on its own. Press Stop when done. Only while the heater is off and the thermostat is off. Needs Hearth firmware 1.43 |
