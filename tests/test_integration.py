@@ -454,6 +454,41 @@ async def test_external_temperature_sensor_is_pushed(
     assert {"cmd": "external_temp", "value": 18.0} in sent(box)
 
 
+async def test_steady_sensor_keeps_being_pushed(
+    hass: HomeAssistant, box: AiohttpClientMocker, entry: MockConfigEntry
+) -> None:
+    """A sensor whose value has not changed for hours, but which still reports, is a steady room, not a dead sensor."""
+    from datetime import UTC, datetime, timedelta
+
+    hass.states.async_set("sensor.cabin", "16.9", {"unit_of_measurement": "°C"})
+    state = hass.states.get("sensor.cabin")
+    old = datetime.now(UTC) - timedelta(hours=3)
+    object.__setattr__(state, "last_changed", old)
+    object.__setattr__(state, "last_updated", old)
+    entry.add_to_hass(hass)
+    hass.config_entries.async_update_entry(entry, options={"external_temperature_entity": "sensor.cabin"})
+    await setup(hass, entry)
+    assert {"cmd": "external_temp", "value": 16.9} in sent(box)
+
+
+async def test_silent_sensor_is_not_pushed(
+    hass: HomeAssistant, box: AiohttpClientMocker, entry: MockConfigEntry
+) -> None:
+    """A sensor that has not reported for over an hour is no longer sent, so the box falls back to the controller."""
+    from datetime import UTC, datetime, timedelta
+
+    hass.states.async_set("sensor.cabin", "16.9", {"unit_of_measurement": "°C"})
+    state = hass.states.get("sensor.cabin")
+    old = datetime.now(UTC) - timedelta(minutes=61)
+    for field in ("last_changed", "last_updated", "last_reported"):
+        object.__setattr__(state, field, old)
+    state.__dict__.pop("last_reported_timestamp", None)
+    entry.add_to_hass(hass)
+    hass.config_entries.async_update_entry(entry, options={"external_temperature_entity": "sensor.cabin"})
+    await setup(hass, entry)
+    assert not any(c["cmd"] == "external_temp" for c in sent(box))
+
+
 async def test_unreachable_box_retries_setup(
     hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, entry: MockConfigEntry
 ) -> None:

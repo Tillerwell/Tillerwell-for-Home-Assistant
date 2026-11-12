@@ -18,6 +18,10 @@ INFO_INTERVAL = timedelta(minutes=1)
 TIMERS_INTERVAL = timedelta(minutes=1)
 # The box only trusts an external temperature for 90 s, so refresh well inside that.
 EXTERNAL_TEMP_REFRESH = timedelta(seconds=30)
+# Stop forwarding a sensor that has not reported for this long (Home Assistant keeps showing its last value), so
+# the box drops it after 90 s and uses the controller. Timed from the sensor's last report, not its last change: a
+# working sensor in a room that is holding steady reports the same value and is never dropped.
+EXTERNAL_TEMP_SILENT = timedelta(minutes=60)
 # Do not hammer the box with clock fixes while it is refusing them.
 CLOCK_SYNC_RETRY = timedelta(seconds=60)
 # While the box does not answer, look for it on the network this often: a restart can bring it back on a new address.

@@ -24,6 +24,7 @@ from .const import (
     CONF_EXTERNAL_TEMP_ENTITY,
     DOMAIN,
     EXTERNAL_TEMP_REFRESH,
+    EXTERNAL_TEMP_SILENT,
     HEATER_CARE_FIELD,
     INFO_INTERVAL,
     MANUFACTURER,
@@ -71,6 +72,7 @@ class HearthCoordinator(DataUpdateCoordinator[HearthData]):
         self._clock_try_at = 0.0
         self._ext_sent_at = 0.0
         self._ext_sent_value: float | None = None
+        self._ext_silent_logged = False
         self._rediscover_at = float("-inf")
         self._name: str | None = None
         # Options the entry was set up with: only a change to these needs a reload.
@@ -218,6 +220,23 @@ class HearthCoordinator(DataUpdateCoordinator[HearthData]):
         state = self.hass.states.get(entity_id)
         if state is None or state.state in (STATE_UNKNOWN, STATE_UNAVAILABLE):
             return None
+        # last_reported moves on every report, even one that repeats the value (HA 2024.3+).
+        reported = getattr(state, "last_reported", None) or state.last_updated
+        silent = datetime.now(UTC) - reported
+        if silent > EXTERNAL_TEMP_SILENT:
+            if not self._ext_silent_logged:
+                _LOGGER.warning(
+                    "%s has not reported for %d minutes; no longer sending it to %s, which will use the controller's "
+                    "own reading until it reports again",
+                    entity_id,
+                    silent.total_seconds() // 60,
+                    self.config_entry.title,
+                )
+                self._ext_silent_logged = True
+            return None
+        if self._ext_silent_logged:
+            _LOGGER.info("%s is reporting again; sending it to %s", entity_id, self.config_entry.title)
+            self._ext_silent_logged = False
         try:
             value = float(state.state)
         except ValueError:
