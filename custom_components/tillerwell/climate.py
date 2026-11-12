@@ -99,6 +99,8 @@ class HearthClimate(HearthEntity, ClimateEntity):
 
     _attr_name = None
     _attr_native_temperature_unit = UnitOfTemperature.CELSIUS
+    # The pre-2026.11 name. Only CI needs it: pytest-homeassistant-custom-component still ships 2026.10.
+    _attr_temperature_unit = UnitOfTemperature.CELSIUS
     _attr_hvac_modes = [HVACMode.OFF, HVACMode.HEAT]
     _attr_supported_features = (
         ClimateEntityFeature.TARGET_TEMPERATURE | ClimateEntityFeature.TURN_ON | ClimateEntityFeature.TURN_OFF
