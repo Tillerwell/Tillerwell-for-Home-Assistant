@@ -482,7 +482,6 @@ async def test_silent_sensor_is_not_pushed(
     old = datetime.now(UTC) - timedelta(minutes=61)
     for field in ("last_changed", "last_updated", "last_reported"):
         object.__setattr__(state, field, old)
-    state.__dict__.pop("last_reported_timestamp", None)
     entry.add_to_hass(hass)
     hass.config_entries.async_update_entry(entry, options={"external_temperature_entity": "sensor.cabin"})
     await setup(hass, entry)
