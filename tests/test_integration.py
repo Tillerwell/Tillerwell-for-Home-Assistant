@@ -657,6 +657,19 @@ async def test_heater_care_entities(
     assert hass.states.get("binary_sensor.hearth_a1b2c3_no_temperature_reading").state == "off"
 
 
+async def test_early_start_attributes(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, entry: MockConfigEntry
+) -> None:
+    """Firmware 1.60: how the next start was worked out rides on the next start temperature sensor."""
+    early = {"start_at": 20.7, "est": "model", "net_rate": 0.0069, "climb": 0.08, "busy_w": 0}
+    heater_care_box(aioclient_mock, auto_start_at=20.7, thermo={**THERMO, "early": early})
+    await setup(hass, entry)
+    s = hass.states.get("sensor.hearth_a1b2c3_next_start_temperature")
+    assert s.state == "20.7"
+    assert s.attributes["early_est"] == "model" and s.attributes["early_busy_w"] == 0
+    assert s.attributes["early_net_rate"] == 0.0069 and s.attributes["early_climb"] == 0.08
+
+
 async def test_heater_care_off_stops_at_once_and_says_so(
     hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, entry: MockConfigEntry
 ) -> None:

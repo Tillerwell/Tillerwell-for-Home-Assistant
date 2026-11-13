@@ -235,8 +235,8 @@ SENSORS: tuple[HearthSensorDescription, ...] = (
         empty_value="None",
         value_fn=_non_empty("timer_note"),
     ),
-    # The cabin temperature the thermostat's next start happens at: high - 1 before the first run, low after it.
-    # RoamOS 1.0038 on.
+    # The cabin temperature the thermostat's next start happens at: the bottom of the working range, or from firmware
+    # 1.60 up to 0.3 C below the top on the room sensor (how it was worked out is in its attributes). RoamOS 1.0038 on.
     HearthSensorDescription(
         key="auto_start_at",
         translation_key="auto_start_at",
@@ -571,6 +571,13 @@ class HearthSensor(HearthEntity, SensorEntity):
             thermo = self.status.get("thermo")
             last = thermo.get("last_early_stop") if isinstance(thermo, dict) else None
             return {"last_early_stop": last} if isinstance(last, dict) else None
+        if self.entity_description.key == "auto_start_at":
+            # firmware 1.60: thermo.early (start_at, est, net_rate, climb, busy_w)
+            thermo = self.status.get("thermo")
+            early = thermo.get("early") if isinstance(thermo, dict) else None
+            if not isinstance(early, dict):
+                return None
+            return {f"early_{k}": early.get(k) for k in ("est", "net_rate", "climb", "busy_w") if k in early}
         return None
 
     @property
