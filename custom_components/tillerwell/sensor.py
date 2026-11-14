@@ -32,6 +32,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from .const import POWER_LEVELS, STATES
 from .coordinator import HearthConfigEntry, HearthCoordinator, HearthData
 from .entity import HearthEntity
+from .reasons import clip
 
 PARALLEL_UPDATES = 0
 
@@ -559,6 +560,7 @@ async def async_setup_entry(
     coordinator = entry.runtime_data
     entities: list[SensorEntity] = [HearthSensor(coordinator, description) for description in SENSORS]
     entities.append(HearthTimersSensor(coordinator))
+    entities.append(HearthLastActionSensor(coordinator))
     async_add_entities(entities)
 
 
@@ -641,3 +643,37 @@ class HearthTimersSensor(HearthEntity, SensorEntity):
     def extra_state_attributes(self) -> dict[str, Any]:
         """The raw list, in the shape the set_timers service takes back (see the README)."""
         return {"timers": self.coordinator.data.timers}
+
+
+class HearthLastActionSensor(HearthEntity, SensorEntity):
+    """The last start or stop asked for from Home Assistant, and why it did or did not happen.
+
+    Its state is the explanation: the box's own reason when it refused (Heater Care's minimum run and rest), or what
+    the heater does next when it accepted (where the thermostat starts and stops, how long a rest or run has left).
+    Unknown until something is started or stopped after Home Assistant starts.
+    """
+
+    _unrecorded_attributes = frozenset({"reason"})
+
+    def __init__(self, coordinator: HearthCoordinator) -> None:
+        super().__init__(coordinator, "last_action")
+
+    @property
+    def native_value(self) -> str | None:
+        """Why the last start or stop did, or did not, happen."""
+        last = self.coordinator.last_action
+        return clip(last["reason"]) if last else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """What was asked, how it went, and when."""
+        last = self.coordinator.last_action
+        if not last:
+            return {}
+        return {
+            "action": last["action"],
+            "result": last["result"],
+            "heater_care": last["care"],
+            "at": last["at"].isoformat(),
+            "reason": last["reason"],
+        }

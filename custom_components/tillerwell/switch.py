@@ -14,6 +14,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from .const import ACTIVE_STATES
 from .coordinator import HearthConfigEntry, HearthCoordinator
 from .entity import HearthEntity
+from .reasons import ACTION_PREHEAT, ACTION_STOP
 
 PARALLEL_UPDATES = 1
 
@@ -60,11 +61,15 @@ async def _run(coordinator: HearthCoordinator, on: bool) -> None:
     """Heater on is a timed preheat of the saved duration; off is a proper stop."""
     if on:
         minutes = int(coordinator.data.status.get("preheat_minutes") or 30)
-        if coordinator.data.status.get("auto_enabled"):
-            await coordinator.async_command("auto", enabled=False)
-        await coordinator.async_command("start_preheat", minutes=minutes)
+
+        async def run() -> None:
+            if coordinator.data.status.get("auto_enabled"):
+                await coordinator.async_command("auto", enabled=False)
+            await coordinator.async_command("start_preheat", minutes=minutes)
+
+        await coordinator.async_act(ACTION_PREHEAT, run, minutes=minutes)
     else:
-        await coordinator.async_stop()
+        await coordinator.async_act(ACTION_STOP, coordinator.async_stop)
 
 
 def _running(status: dict[str, Any]) -> bool | None:

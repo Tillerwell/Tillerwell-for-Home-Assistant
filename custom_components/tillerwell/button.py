@@ -15,6 +15,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from .api import HearthError
 from .coordinator import HearthConfigEntry, HearthCoordinator
 from .entity import HearthEntity
+from .reasons import ACTION_PREHEAT, ACTION_PUMP, ACTION_STOP, ACTION_THERMOSTAT_ON
 
 PARALLEL_UPDATES = 1
 
@@ -28,25 +29,33 @@ class HearthButtonDescription(ButtonEntityDescription):
 
 async def _start_preheat(coordinator: HearthCoordinator) -> None:
     minutes = int(coordinator.data.status.get("preheat_minutes") or 30)
-    if coordinator.data.status.get("auto_enabled"):
-        await coordinator.async_command("auto", enabled=False)
-    await coordinator.async_command("start_preheat", minutes=minutes)
+
+    async def run() -> None:
+        if coordinator.data.status.get("auto_enabled"):
+            await coordinator.async_command("auto", enabled=False)
+        await coordinator.async_command("start_preheat", minutes=minutes)
+
+    await coordinator.async_act(ACTION_PREHEAT, run, minutes=minutes)
 
 
 async def _start_thermostat(coordinator: HearthCoordinator) -> None:
-    await coordinator.async_command("start_thermostat")
+    await coordinator.async_act(ACTION_THERMOSTAT_ON, lambda: coordinator.async_command("start_thermostat"))
 
 
 async def _start_pump(coordinator: HearthCoordinator) -> None:
-    await coordinator.async_command("start_pump")
+    await coordinator.async_act(ACTION_PUMP, lambda: coordinator.async_command("start_pump"))
 
 
 async def _stop(coordinator: HearthCoordinator) -> None:
     """Stop whatever is running. The heater can still read idle while it primes or tests its fan, so the stop always
     goes out (the box takes it in any state); Auto goes off first or it would start the heater again."""
-    if coordinator.data.status.get("auto_enabled"):
-        await coordinator.async_command("auto", enabled=False)
-    await coordinator.async_command("stop")
+
+    async def run() -> None:
+        if coordinator.data.status.get("auto_enabled"):
+            await coordinator.async_command("auto", enabled=False)
+        await coordinator.async_command("stop")
+
+    await coordinator.async_act(ACTION_STOP, run)
 
 
 async def _prime_fuel(coordinator: HearthCoordinator) -> None:

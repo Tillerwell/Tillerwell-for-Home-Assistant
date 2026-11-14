@@ -30,6 +30,7 @@ from .const import (
 )
 from .coordinator import HearthConfigEntry, HearthCoordinator
 from .entity import HearthEntity
+from .reasons import ACTION_STOP, ACTION_THERMOSTAT_ON
 
 PARALLEL_UPDATES = 1
 
@@ -166,9 +167,11 @@ class HearthClimate(HearthEntity, ClimateEntity):
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         """Heat arms Auto; Off switches Auto off and stops the heater."""
         if hvac_mode == HVACMode.HEAT:
-            await self.coordinator.async_command("auto", enabled=True)
+            await self.coordinator.async_act(
+                ACTION_THERMOSTAT_ON, lambda: self.coordinator.async_command("auto", enabled=True)
+            )
         else:
-            await self.coordinator.async_stop()
+            await self.coordinator.async_act(ACTION_STOP, self.coordinator.async_stop)
 
     async def async_set_timers(self, timers: list[dict[str, Any]]) -> None:
         """Entity service: replace the box's whole timer list."""

@@ -176,6 +176,7 @@
       "fuel_used_today": {"name": "Fuel used today (estimated)"},
       "fuel_cost": {"name": "Fuel cost (estimated)"},
       "fuel_cost_today": {"name": "Fuel cost today (estimated)"},
+      "last_action": {"name": "Last start or stop"},
       "battery_power": {"name": "Battery draw (estimated)"},
       "battery_used": {"name": "Battery used (estimated)"},
       "battery_used_today": {"name": "Battery used today (estimated)"},

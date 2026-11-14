@@ -733,6 +733,9 @@ async def test_heater_care_lock_off_inside_minimum_run_is_not_an_error(
         CLIMATE, SERVICE_SET_HVAC_MODE, {ATTR_ENTITY_ID: CLIMATE_ID, ATTR_HVAC_MODE: "off"}, blocking=True
     )
     assert [c["cmd"] for c in sent(aioclient_mock)][-2:] == ["auto", "stop"]
+    last = hass.states.get("sensor.hearth_a1b2c3_last_start_or_stop")
+    assert last.state.startswith("Thermostat off. The run has 8 more min of its 30-minute minimum")
+    assert last.attributes["action"] == "stop" and last.attributes["result"] == "waiting"
 
 
 async def test_heater_care_lock_refusal_shows_the_reason(
@@ -745,6 +748,32 @@ async def test_heater_care_lock_refusal_shows_the_reason(
         await hass.services.async_call(
             SWITCH, SERVICE_TURN_OFF, {ATTR_ENTITY_ID: "switch.hearth_a1b2c3_heater"}, blocking=True
         )
+    last = hass.states.get("sensor.hearth_a1b2c3_last_start_or_stop")
+    assert last.state.startswith("Not stopped: Heater Care: the run has 17 more min of its minimum run")
+    assert last.attributes["result"] == "refused" and last.attributes["heater_care"] == "min_run"
+
+
+async def test_last_start_or_stop_explains_what_happens(
+    hass: HomeAssistant, box: AiohttpClientMocker, entry: MockConfigEntry
+) -> None:
+    await setup(hass, entry)
+    assert hass.states.get("sensor.hearth_a1b2c3_last_start_or_stop").state == "unknown"
+    await hass.services.async_call(
+        CLIMATE, SERVICE_SET_HVAC_MODE, {ATTR_ENTITY_ID: CLIMATE_ID, ATTR_HVAC_MODE: "heat"}, blocking=True
+    )
+    last = hass.states.get("sensor.hearth_a1b2c3_last_start_or_stop")
+    assert last.state == (
+        "Thermostat on. The room is 17°, at or below the 20° start point, so the heater starts now "
+        "and stops when the room reaches 21°."
+    )
+    assert last.attributes["action"] == "thermostat_on" and last.attributes["result"] == "done"
+    await hass.services.async_call(
+        SWITCH, SERVICE_TURN_ON, {ATTR_ENTITY_ID: "switch.hearth_a1b2c3_heater"}, blocking=True
+    )
+    assert (
+        hass.states.get("sensor.hearth_a1b2c3_last_start_or_stop").state
+        == "Started a 30-minute preheat. It ends early if the coolant reaches 88°."
+    )
 
 
 async def test_heater_care_one_degree_range(
