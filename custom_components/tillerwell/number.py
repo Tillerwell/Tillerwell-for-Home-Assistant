@@ -169,6 +169,18 @@ NUMBERS: tuple[HearthNumberDescription, ...] = (
         cmd="fuel_factor",
         params_fn=lambda value, _status: {"value": value},
     ),
+    # Battery-use estimate's calibration (Hearth firmware 1.62)
+    HearthNumberDescription(
+        key="battery_factor",
+        translation_key="battery_factor",
+        native_min_value=MIN_FUEL_FACTOR,
+        native_max_value=MAX_FUEL_FACTOR,
+        native_step=0.01,
+        entity_category=EntityCategory.CONFIG,
+        field="battery_factor",
+        cmd="battery_factor",
+        params_fn=lambda value, _status: {"value": value},
+    ),
     HearthNumberDescription(
         key="tank_capacity",
         translation_key="tank_capacity",

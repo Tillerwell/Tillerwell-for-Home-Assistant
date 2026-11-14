@@ -326,6 +326,25 @@ async def test_fuel_estimate(hass: HomeAssistant, box: AiohttpClientMocker, entr
     assert sent(box) == [{"cmd": "fuel_price", "value": 1.62}, {"cmd": "fuel_factor", "value": 1.1}]
 
 
+async def test_battery_use(hass: HomeAssistant, box: AiohttpClientMocker, entry: MockConfigEntry) -> None:
+    await setup(hass, entry)
+    used = hass.states.get("sensor.hearth_a1b2c3_battery_used_estimated")
+    assert used.state == "23.456"
+    assert used.attributes["unit_of_measurement"] == "Ah"
+    assert used.attributes["state_class"] == "total_increasing"
+    assert hass.states.get("sensor.hearth_a1b2c3_battery_used_today_estimated").state == "1.7"
+    assert hass.states.get("sensor.hearth_a1b2c3_battery_used_this_run_estimated").state == "0.85"
+    assert hass.states.get("sensor.hearth_a1b2c3_battery_draw_estimated").state == "0"
+    assert hass.states.get("number.hearth_a1b2c3_battery_calibration_factor").state == "1.0"
+    await hass.services.async_call(
+        NUMBER,
+        SERVICE_SET_VALUE,
+        {ATTR_ENTITY_ID: "number.hearth_a1b2c3_battery_calibration_factor", ATTR_VALUE: 1.2},
+        blocking=True,
+    )
+    assert sent(box) == [{"cmd": "battery_factor", "value": 1.2}]
+
+
 async def test_tank(hass: HomeAssistant, box: AiohttpClientMocker, entry: MockConfigEntry) -> None:
     await setup(hass, entry)
     assert hass.states.get("sensor.hearth_a1b2c3_tank_level").state == "76.6"

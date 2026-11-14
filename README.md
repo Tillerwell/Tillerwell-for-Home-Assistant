@@ -22,6 +22,7 @@ Control an Autoterm diesel heater from Home Assistant through a **Tillerwell Hea
 | **Fuel in tank** (number), **Tank level** (%), **Tank size** (number), **Tank filled to the top** (button) | What's left in the tank: the level you set, less the estimate since. Needs RoamOS 1.0012 or later |
 | **Power level, Heater mode, Burner hours, Starts** | What the heater says it is doing, and how much it has run (hours at low, middle and high are diagnostics) |
 | **Fuel price, Fuel calibration factor** (numbers) | Price per litre in your Home Assistant currency, and the estimate's correction. The four fuel rates are there too, disabled by default |
+| **Battery used, Battery used today, Battery used this run, Battery draw**, **Battery calibration factor** (number) | Estimated amp-hours and watts the heater takes from the battery, see below. Needs Hearth firmware 1.62 |
 | **Fault, Last fault** and a **Fault** problem sensor | Heater fault names as reported by the heater |
 | **Heater locked** (problem sensor), **Unlock heater** (button) | The heater locks itself after repeated failed starts or overheating; Unlock clears it once you've fixed the cause. The box only takes it while the heater is off. Needs Hearth firmware 1.42 |
 | **Read heater info** (button) and the **Heater …** diagnostics | Asks the heater for its own settings and lifetime report: its coolant target, its firmware, starts, failed lights and running time (time on high, middle and low, second tries and power cuts are disabled by default). *Unavailable* until you press the button once; the box also picks up the settings when the controller reads them at power-up. Read only. Needs Hearth firmware 1.42; the report's layout is not yet checked against a real heater |
@@ -64,6 +65,13 @@ The heater doesn't report its fuel pump to the box, so the box estimates fuel: t
 - **Fuel used (estimated)** is a total that only goes up, in litres, so Home Assistant keeps long-term statistics for it: use it in a statistics graph or a utility meter for weekly or monthly figures.
 - Set **Fuel price** to what you pay per litre. The box adds up the cost as it goes, so a new price applies from then on and past costs stay as they were.
 - To calibrate, fill the tank to the top, note **Fuel used**, run the heater for a few days, fill up again and divide the litres that went in by the change in **Fuel used**. Multiply **Fuel calibration factor** by that. The Tillerwell app does the sum for you.
+
+## Battery use
+
+The heater doesn't report its current either, so the box (Hearth firmware 1.62 and later) estimates what it takes from the battery the same way: time in each phase times Autoterm's power figures (about 120 W while the glow plug lights it, up to 42 W running with the pump, 30 W blowing), divided by the battery voltage the heater reports. The heater's small standby draw is left out.
+
+- **Battery used (estimated)** is an amp-hour total that only goes up; **Battery used today** and **Battery used this run** reset at midnight and at each start. **Battery draw (estimated)** is the watts now.
+- If you have a battery monitor, compare its amp-hours over a run with the estimate and set **Battery calibration factor** to measured ÷ estimated.
 
 ## Thermostat
 
