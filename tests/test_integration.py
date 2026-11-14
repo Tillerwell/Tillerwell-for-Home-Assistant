@@ -830,3 +830,79 @@ async def test_heater_care_switch_off_stops(
         {"cmd": "auto", "enabled": False, "source": "home_assistant"},
         {"cmd": "stop", "source": "home_assistant"},
     ]
+
+
+FUEL_DAY = {
+    "date": "2026-11-14",
+    "litres": 1.73,
+    "cost": 2.74,
+    "burn_min": 219,
+    "starts": 1,
+    "levels": [
+        {"level": "starting", "minutes": 6, "litres": 0.02, "cost": 0.03},
+        {"level": "low", "minutes": 120, "litres": 0.3, "cost": 0.47},
+        {"level": "middle", "minutes": 60, "litres": 0.35, "cost": 0.55},
+        {"level": "high", "minutes": 33, "litres": 1.06, "cost": 1.69},
+    ],
+    "hours": [[0, 0, 0, 0]] * 24,
+}
+
+
+async def test_fuel_today_by_power_level(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, entry: MockConfigEntry
+) -> None:
+    serve(aioclient_mock, BASE, {**INFO, "version": "1.0064"})
+    aioclient_mock.get(f"{BASE}/api/fuel/day", json=FUEL_DAY)
+    await setup(hass, entry)
+    assert hass.states.get("sensor.hearth_a1b2c3_fuel_today_high_estimated").state == "1.06"
+    assert hass.states.get("sensor.hearth_a1b2c3_fuel_today_low_estimated").state == "0.3"
+    assert hass.states.get("sensor.hearth_a1b2c3_fuel_cost_today_middle_estimated").state == "0.55"
+    assert hass.states.get("sensor.hearth_a1b2c3_fuel_cost_today_starting_estimated").state == "0.03"
+    asked = [str(c[1]) for c in aioclient_mock.mock_calls if "/api/fuel/day" in str(c[1])]
+    assert asked and "date=" in asked[0]
+
+
+async def test_fuel_today_by_power_level_needs_164(
+    hass: HomeAssistant, box: AiohttpClientMocker, entry: MockConfigEntry
+) -> None:
+    await setup(hass, entry)
+    assert hass.states.get("sensor.hearth_a1b2c3_fuel_today_high_estimated").state == "unavailable"
+    assert not [c for c in box.mock_calls if "/api/fuel/day" in str(c[1])]
+
+
+async def test_fuel_today_by_power_level_none_kept(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, entry: MockConfigEntry
+) -> None:
+    serve(aioclient_mock, BASE, {**INFO, "version": "1.0064"})
+    aioclient_mock.get(f"{BASE}/api/fuel/day", status=404, json={"ok": False})
+    await setup(hass, entry)
+    assert hass.states.get("sensor.hearth_a1b2c3_fuel_today_high_estimated").state == "unavailable"
+
+
+async def test_set_fuel_price_backdated(hass: HomeAssistant, box: AiohttpClientMocker, entry: MockConfigEntry) -> None:
+    from datetime import timedelta
+
+    from homeassistant.util import dt as dt_util
+
+    await setup(hass, entry)
+    today = dt_util.now().date()
+    await hass.services.async_call(DOMAIN, "set_fuel_price", {ATTR_ENTITY_ID: CLIMATE_ID, "price": 1.58}, blocking=True)
+    back = (today - timedelta(days=13)).isoformat()
+    await hass.services.async_call(
+        DOMAIN, "set_fuel_price", {ATTR_ENTITY_ID: CLIMATE_ID, "price": 1.55, "from_date": back}, blocking=True
+    )
+    assert sent(box) == [{"cmd": "fuel_price", "value": 1.58}, {"cmd": "fuel_price", "value": 1.55, "from": back}]
+    with pytest.raises(ServiceValidationError):
+        await hass.services.async_call(
+            DOMAIN,
+            "set_fuel_price",
+            {ATTR_ENTITY_ID: CLIMATE_ID, "price": 1.5, "from_date": (today + timedelta(days=1)).isoformat()},
+            blocking=True,
+        )
+    with pytest.raises(ServiceValidationError):
+        await hass.services.async_call(
+            DOMAIN,
+            "set_fuel_price",
+            {ATTR_ENTITY_ID: CLIMATE_ID, "price": 1.5, "from_date": (today - timedelta(days=400)).isoformat()},
+            blocking=True,
+        )

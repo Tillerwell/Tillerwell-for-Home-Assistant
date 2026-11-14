@@ -29,7 +29,7 @@ from homeassistant.const import (
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
-from .const import POWER_LEVELS, STATES
+from .const import FUEL_LEVELS, POWER_LEVELS, STATES
 from .coordinator import HearthConfigEntry, HearthCoordinator, HearthData
 from .entity import HearthEntity
 from .reasons import clip
@@ -52,6 +52,20 @@ class HearthSensorDescription(SensorEntityDescription):
     required_field: str | None = None
     # Firmware 1.42 heater_info: unavailable until the heater has answered a Read heater info.
     info_section: str | None = None
+    # Today's fuel by power level (firmware 1.64): unavailable until the box has sent one.
+    fuel_day: bool = False
+
+
+def _fuel_level(level: str, field: str) -> Callable[[HearthData], Any]:
+    """Today's litres or cost at one power level, from GET /api/fuel/day (Hearth 1.64)."""
+
+    def read(data: HearthData) -> Any:
+        for entry in (data.fuel_day or {}).get("levels") or []:
+            if entry.get("level") == level:
+                return entry.get(field)
+        return None
+
+    return read
 
 
 def _status(key: str) -> Callable[[HearthData], Any]:
@@ -356,6 +370,33 @@ SENSORS: tuple[HearthSensorDescription, ...] = (
         currency=True,
         value_fn=_status("fuel_cost_today"),
     ),
+    # Today's fuel by power level (Hearth firmware 1.64): litres and cost at starting, low, middle and high.
+    *[
+        HearthSensorDescription(
+            key=f"fuel_today_{level}",
+            translation_key=f"fuel_today_{level}",
+            device_class=SensorDeviceClass.VOLUME,
+            native_unit_of_measurement=UnitOfVolume.LITERS,
+            state_class=SensorStateClass.TOTAL_INCREASING,
+            suggested_display_precision=2,
+            value_fn=_fuel_level(level, "litres"),
+            fuel_day=True,
+        )
+        for level in FUEL_LEVELS
+    ],
+    *[
+        HearthSensorDescription(
+            key=f"fuel_cost_today_{level}",
+            translation_key=f"fuel_cost_today_{level}",
+            device_class=SensorDeviceClass.MONETARY,
+            state_class=SensorStateClass.TOTAL,
+            suggested_display_precision=2,
+            currency=True,
+            value_fn=_fuel_level(level, "cost"),
+            fuel_day=True,
+        )
+        for level in FUEL_LEVELS
+    ],
     # Battery-use estimate (Hearth firmware 1.62): time in each phase x Autoterm's power figures / the supply voltage.
     HearthSensorDescription(
         key="battery_power",
@@ -596,6 +637,8 @@ class HearthSensor(HearthEntity, SensorEntity):
             self.entity_description.info_section
             and _heater_info(self.coordinator.data).get(self.entity_description.info_section) is None
         ):
+            return False
+        if self.entity_description.fuel_day and not self.coordinator.data.fuel_day:
             return False
         return not self.entity_description.extended or bool(self.status.get("extended_active"))
 

@@ -17,6 +17,7 @@ from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+from homeassistant.util import dt as dt_util
 from homeassistant.util.unit_conversion import TemperatureConverter
 
 from .api import HearthClient, HearthConnectionError, HearthError, HearthRequestError
@@ -26,6 +27,8 @@ from .const import (
     DOMAIN,
     EXTERNAL_TEMP_REFRESH,
     EXTERNAL_TEMP_SILENT,
+    FUEL_DAY_FIRMWARE,
+    FUEL_DAY_INTERVAL,
     HEATER_CARE_FIELD,
     INFO_INTERVAL,
     MANUFACTURER,
@@ -57,6 +60,15 @@ _LOGGER = logging.getLogger(__name__)
 type HearthConfigEntry = ConfigEntry[HearthCoordinator]
 
 
+def roamos_number(version: Any) -> int | None:
+    """RoamOS "1.0064" as 10064, None for anything else."""
+    if not isinstance(version, str) or len(version) != 6 or version[1] != ".":
+        return None
+    if not version[0].isdigit() or not version[2:].isdigit():
+        return None
+    return int(version[0]) * 10000 + int(version[2:])
+
+
 @dataclass
 class HearthData:
     """Everything the entities read."""
@@ -64,6 +76,8 @@ class HearthData:
     status: dict[str, Any]
     info: dict[str, Any]
     timers: list[dict[str, Any]]
+    # Today's fuel by power level (Hearth 1.64), None on older firmware or until the box has one.
+    fuel_day: dict[str, Any] | None = None
 
 
 class HearthCoordinator(DataUpdateCoordinator[HearthData]):
@@ -84,6 +98,8 @@ class HearthCoordinator(DataUpdateCoordinator[HearthData]):
         self._timers: list[dict[str, Any]] = []
         self._info_at = 0.0
         self._timers_at = 0.0
+        self._fuel_day: dict[str, Any] | None = None
+        self._fuel_day_at = 0.0
         self._clock_try_at = 0.0
         self._ext_sent_at = 0.0
         self._ext_sent_value: float | None = None
@@ -129,12 +145,14 @@ class HearthCoordinator(DataUpdateCoordinator[HearthData]):
             await self._refresh_info(now)
         if not self._timers_at or now - self._timers_at >= TIMERS_INTERVAL.total_seconds():
             await self._refresh_timers(now)
+        if not self._fuel_day_at or now - self._fuel_day_at >= FUEL_DAY_INTERVAL.total_seconds():
+            await self._refresh_fuel_day(now)
 
         # Best effort: neither may fail the update.
         await self._sync_clock(status, now)
         await self._push_external_temperature(now)
 
-        return HearthData(status=status, info=self._info, timers=self._timers)
+        return HearthData(status=status, info=self._info, timers=self._timers, fuel_day=self._fuel_day)
 
     async def _refresh_info(self, now: float) -> None:
         try:
@@ -189,6 +207,16 @@ class HearthCoordinator(DataUpdateCoordinator[HearthData]):
         device = registry.async_get_device_by_identifier(self._device_id, entry.entry_id)
         if device and device.name != name:
             registry.async_update_device(device.id, name=name)
+
+    async def _refresh_fuel_day(self, now: float) -> None:
+        self._fuel_day_at = now
+        if (roamos_number(self._info.get("version")) or 0) < FUEL_DAY_FIRMWARE:
+            self._fuel_day = None
+            return
+        try:
+            self._fuel_day = await self.client.get_fuel_day(dt_util.now().date().isoformat())
+        except HearthError as err:
+            _LOGGER.debug("Could not read today's fuel by power level: %s", err)
 
     async def _refresh_timers(self, now: float) -> None:
         try:

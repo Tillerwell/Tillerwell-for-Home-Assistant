@@ -176,6 +176,14 @@
       "fuel_used_today": {"name": "Fuel used today (estimated)"},
       "fuel_cost": {"name": "Fuel cost (estimated)"},
       "fuel_cost_today": {"name": "Fuel cost today (estimated)"},
+      "fuel_today_starting": {"name": "Fuel today, starting (estimated)"},
+      "fuel_today_low": {"name": "Fuel today, low (estimated)"},
+      "fuel_today_middle": {"name": "Fuel today, middle (estimated)"},
+      "fuel_today_high": {"name": "Fuel today, high (estimated)"},
+      "fuel_cost_today_starting": {"name": "Fuel cost today, starting (estimated)"},
+      "fuel_cost_today_low": {"name": "Fuel cost today, low (estimated)"},
+      "fuel_cost_today_middle": {"name": "Fuel cost today, middle (estimated)"},
+      "fuel_cost_today_high": {"name": "Fuel cost today, high (estimated)"},
       "last_action": {"name": "Last start or stop"},
       "battery_power": {"name": "Battery draw (estimated)"},
       "battery_used": {"name": "Battery used (estimated)"},
@@ -211,6 +219,14 @@
           "name": "Timers",
           "description": "A list of timers. Each has mode (preheat or thermostat), start (time of day), duration_min (20 to 480), and either days (mon to sun) or a one-off date. Thermostat timers also take low_c and high_c. Optional: id, enabled."
         }
+      }
+    },
+    "set_fuel_price": {
+      "name": "Set fuel price",
+      "description": "Sets the diesel price per litre. Give a date up to a year back to backdate it: the box (firmware 1.63 or later) works out every day's cost from that date again, and the running total with it. Without a date it applies from now on.",
+      "fields": {
+        "price": {"name": "Price per litre", "description": "In your currency, 0 to 100."},
+        "from_date": {"name": "Applies from", "description": "The day you started paying this price: today or up to a year back."}
       }
     },
     "set_external_temperature": {

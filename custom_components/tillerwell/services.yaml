@@ -26,3 +26,23 @@ set_external_temperature:
           max: 60
           step: 0.1
           unit_of_measurement: "°C"
+
+set_fuel_price:
+  target:
+    entity:
+      integration: tillerwell
+      domain: climate
+  fields:
+    price:
+      required: true
+      example: 1.58
+      selector:
+        number:
+          min: 0
+          max: 100
+          step: 0.001
+    from_date:
+      required: false
+      example: "2026-11-01"
+      selector:
+        date:

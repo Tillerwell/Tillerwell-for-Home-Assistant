@@ -57,7 +57,7 @@ class HearthClient:
         """Base URL of the box, for the device page's "visit" link."""
         return self._base
 
-    async def _request(self, method: str, path: str, body: Any = None) -> Any:
+    async def _request(self, method: str, path: str, body: Any = None, allow_missing: bool = False) -> Any:
         async with self._lock:
             try:
                 async with self._session.request(
@@ -76,6 +76,8 @@ class HearthClient:
                         reason = data.get("error") if isinstance(data, dict) else None
                         care = data.get("care") if isinstance(data, dict) else None
                         raise HearthRequestError(reason or "The box rejected the request", care)
+                    if resp.status == 404 and allow_missing:
+                        return None
                     if resp.status >= 400:
                         raise HearthConnectionError(f"The box answered HTTP {resp.status}")
                     return await resp.json(content_type=None)
@@ -88,6 +90,11 @@ class HearthClient:
         if not isinstance(data, dict) or "device_name" not in data:
             raise HearthConnectionError("That is not a Hearth box")
         return data
+
+    async def get_fuel_day(self, date: str) -> dict[str, Any] | None:
+        """One day of the fuel log by power level (Hearth 1.64), None when the box keeps none for it."""
+        data = await self._request("GET", f"/api/fuel/day?date={date}", allow_missing=True)
+        return data if isinstance(data, dict) else None
 
     async def get_status(self) -> dict[str, Any]:
         """The live status document."""

@@ -74,6 +74,14 @@
       "fuel_used_today": {"default": "mdi:gas-station"},
       "fuel_cost": {"default": "mdi:cash"},
       "fuel_cost_today": {"default": "mdi:cash"},
+      "fuel_today_starting": {"default": "mdi:fuel"},
+      "fuel_today_low": {"default": "mdi:fuel"},
+      "fuel_today_middle": {"default": "mdi:fuel"},
+      "fuel_today_high": {"default": "mdi:fuel"},
+      "fuel_cost_today_starting": {"default": "mdi:cash"},
+      "fuel_cost_today_low": {"default": "mdi:cash"},
+      "fuel_cost_today_middle": {"default": "mdi:cash"},
+      "fuel_cost_today_high": {"default": "mdi:cash"},
       "last_action": {"default": "mdi:comment-question-outline"},
       "battery_power": {"default": "mdi:flash"},
       "battery_used": {"default": "mdi:car-battery"},
@@ -102,6 +110,7 @@
   },
   "services": {
     "set_external_temperature": {"service": "mdi:thermometer-plus"},
+    "set_fuel_price": {"service": "mdi:gas-station"},
     "set_timers": {"service": "mdi:calendar-edit"}
   }
 }

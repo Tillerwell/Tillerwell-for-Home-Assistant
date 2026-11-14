@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import uuid
+from datetime import date, timedelta
 from typing import Any
 
 import voluptuous as vol
@@ -17,14 +18,18 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback, async_get_current_platform
+from homeassistant.util import dt as dt_util
 
 from .const import (
     ACTIVE_STATES,
+    ATTR_FROM,
+    ATTR_PRICE,
     ATTR_TIMERS,
     HEATER_CARE_FIELD,
     MAX_AUTO_TEMP,
     MIN_AUTO_TEMP,
     SERVICE_SET_EXTERNAL_TEMPERATURE,
+    SERVICE_SET_FUEL_PRICE,
     SERVICE_SET_TIMERS,
     SOURCE,
 )
@@ -87,6 +92,14 @@ async def async_setup_entry(
         SERVICE_SET_EXTERNAL_TEMPERATURE,
         {vol.Required(ATTR_TEMPERATURE): vol.Coerce(float)},
         "async_set_external_temperature",
+    )
+    platform.async_register_entity_service(
+        SERVICE_SET_FUEL_PRICE,
+        {
+            vol.Required(ATTR_PRICE): vol.All(vol.Coerce(float), vol.Range(min=0, max=100)),
+            vol.Optional(ATTR_FROM): cv.date,
+        },
+        "async_set_fuel_price",
     )
 
 
@@ -176,6 +189,16 @@ class HearthClimate(HearthEntity, ClimateEntity):
     async def async_set_timers(self, timers: list[dict[str, Any]]) -> None:
         """Entity service: replace the box's whole timer list."""
         await self.coordinator.async_set_timers([timer_to_wire(timer) for timer in timers])
+
+    async def async_set_fuel_price(self, price: float, from_date: date | None = None) -> None:
+        """Entity service: the diesel price per litre, from a date up to a year back (Hearth 1.63 reprices the log)."""
+        if from_date is None:
+            await self.coordinator.async_command("fuel_price", value=price)
+            return
+        today = dt_util.now().date()
+        if from_date > today or from_date < today - timedelta(days=365):
+            raise ServiceValidationError("The date must be today or up to a year back.")
+        await self.coordinator.async_command("fuel_price", value=price, **{"from": from_date.isoformat()})
 
     async def async_set_external_temperature(self, temperature: float) -> None:
         """Entity service: tell the box the room temperature (used for 90 s)."""

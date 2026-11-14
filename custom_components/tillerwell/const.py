@@ -16,6 +16,10 @@ SCAN_INTERVAL = timedelta(seconds=5)
 # Slow-changing data is read less often than the status document.
 INFO_INTERVAL = timedelta(minutes=1)
 TIMERS_INTERVAL = timedelta(minutes=1)
+# Today's fuel by power level (GET /api/fuel/day, Hearth 1.64): the box counts it by the minute.
+FUEL_DAY_INTERVAL = timedelta(minutes=5)
+FUEL_DAY_FIRMWARE = 10064  # RoamOS 1.0064 as a number
+FUEL_LEVELS = ("starting", "low", "middle", "high")
 # The box only trusts an external temperature for 90 s, so refresh well inside that.
 EXTERNAL_TEMP_REFRESH = timedelta(seconds=30)
 # Stop forwarding a sensor that has not reported for this long (Home Assistant keeps showing its last value), so
@@ -60,4 +64,7 @@ SOURCE = "home_assistant"
 
 SERVICE_SET_TIMERS = "set_timers"
 SERVICE_SET_EXTERNAL_TEMPERATURE = "set_external_temperature"
+SERVICE_SET_FUEL_PRICE = "set_fuel_price"
 ATTR_TIMERS = "timers"
+ATTR_PRICE = "price"
+ATTR_FROM = "from_date"
