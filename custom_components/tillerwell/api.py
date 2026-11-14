@@ -23,7 +23,14 @@ class HearthAuthError(HearthError):
 
 
 class HearthRequestError(HearthError):
-    """The box answered with an error and a reason (for example a rejected timer list)."""
+    """The box answered with an error and a reason (for example a rejected timer list).
+
+    `care` is set when Heater Care refused a stop or a start (firmware 1.61): "min_run" or "min_off".
+    """
+
+    def __init__(self, message: str, care: str | None = None) -> None:
+        super().__init__(message)
+        self.care = care
 
 
 class HearthClient:
@@ -67,7 +74,8 @@ class HearthClient:
                         except (aiohttp.ContentTypeError, ValueError):
                             data = None
                         reason = data.get("error") if isinstance(data, dict) else None
-                        raise HearthRequestError(reason or "The box rejected the request")
+                        care = data.get("care") if isinstance(data, dict) else None
+                        raise HearthRequestError(reason or "The box rejected the request", care)
                     if resp.status >= 400:
                         raise HearthConnectionError(f"The box answered HTTP {resp.status}")
                     return await resp.json(content_type=None)

@@ -18,7 +18,7 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util.unit_conversion import TemperatureConverter
 
-from .api import HearthClient, HearthConnectionError, HearthError
+from .api import HearthClient, HearthConnectionError, HearthError, HearthRequestError
 from .const import (
     CLOCK_SYNC_RETRY,
     CONF_EXTERNAL_TEMP_ENTITY,
@@ -250,6 +250,10 @@ class HearthCoordinator(DataUpdateCoordinator[HearthData]):
         """Send a command, tell the user if the box refused it, and refresh."""
         try:
             accepted = await self.client.command(cmd, **params)
+        except HearthRequestError as err:
+            # the box said no and why (Heater Care, firmware 1.61: a stop inside the minimum run or a start inside
+            # the rest after a run). Home Assistant can never override that; only the Tillerwell app can.
+            raise HomeAssistantError(str(err)) from err
         except HearthError as err:
             raise HomeAssistantError(f"Could not reach {self.config_entry.title}: {err}") from err
         if not accepted:
@@ -261,21 +265,30 @@ class HearthCoordinator(DataUpdateCoordinator[HearthData]):
     async def async_stop(self) -> None:
         """Stop the heater. Auto must be switched off first or the box starts it again.
 
-        Home Assistant cannot ask "let it finish?", so on firmware with Heater Care (1.47) a stop goes at once and the
-        box logs it as an early stop from Home Assistant; the apps explain it the next time they open.
+        Heater Care (firmware 1.61) does not let Home Assistant stop a run inside its minimum run. Thermostat off is
+        still accepted: Auto goes off and the box stops the run once its minimum run is up, so that is not an error.
+        Any other stop the box refuses (a preheat) raises, with the box's reason. Only the Tillerwell app can override.
         """
         status = self.data.status if self.data else {}
         care = HEATER_CARE_FIELD in status
-        if status.get("auto_enabled"):
+        auto_was_on = bool(status.get("auto_enabled"))
+        if auto_was_on:
             if care:
-                await self.async_command("auto", enabled=False, finish_run=False, source=SOURCE)
+                await self.async_command("auto", enabled=False, source=SOURCE)
             else:
                 await self.async_command("auto", enabled=False)
         if status.get("state") not in (None, STATE_IDLE):
-            if care:
-                await self.async_command("stop", source=SOURCE)
-            else:
+            if not care:
                 await self.async_command("stop")
+                return
+            try:
+                await self.client.command("stop", source=SOURCE)
+            except HearthRequestError as err:
+                if not (auto_was_on and err.care == "min_run"):
+                    raise HomeAssistantError(str(err)) from err
+            except HearthError as err:
+                raise HomeAssistantError(f"Could not reach {self.config_entry.title}: {err}") from err
+            await self.async_request_refresh()
 
     async def async_set_timers(self, timers: list[dict[str, Any]]) -> None:
         """Replace the box's timer list. The box checks every rule and says why if it refuses."""

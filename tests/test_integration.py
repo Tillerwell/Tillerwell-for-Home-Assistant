@@ -27,7 +27,7 @@ from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from pytest_homeassistant_custom_component.common import MockConfigEntry
-from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClientMocker
+from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClientMocker, AiohttpClientMockResponse
 
 from custom_components.tillerwell.const import DOMAIN
 from custom_components.tillerwell.number import _rates_with
@@ -633,14 +633,24 @@ THERMO = {
 }
 
 
-def heater_care_box(aioclient_mock: AiohttpClientMocker, **status: object) -> None:
+def heater_care_box(aioclient_mock: AiohttpClientMocker, refuse_stop: dict | None = None, **status: object) -> None:
+    """A box with Heater Care. refuse_stop: the 400 body a 1.61 box answers a locked stop with."""
     aioclient_mock.get(f"{BASE}/api/info", json=INFO)
     aioclient_mock.get(
         f"{BASE}/api/status",
         json={**STATUS, "hyst_min": 0.5, "hyst_max": 0.5, "thermo": THERMO, **status},
     )
     aioclient_mock.get(f"{BASE}/api/timers", json=TIMERS)
-    aioclient_mock.post(f"{BASE}/api/cmd", json={"ok": True})
+    if refuse_stop is None:
+        aioclient_mock.post(f"{BASE}/api/cmd", json={"ok": True})
+        return
+
+    async def reply(method, url, data):
+        if isinstance(data, dict) and data.get("cmd") == "stop":
+            return AiohttpClientMockResponse(method, url, status=400, json=refuse_stop)
+        return AiohttpClientMockResponse(method, url, json={"ok": True})
+
+    aioclient_mock.post(f"{BASE}/api/cmd", side_effect=reply)
 
 
 async def test_heater_care_entities(
@@ -670,7 +680,7 @@ async def test_early_start_attributes(
     assert s.attributes["early_net_rate"] == 0.0069 and s.attributes["early_climb"] == 0.08
 
 
-async def test_heater_care_off_stops_at_once_and_says_so(
+async def test_heater_care_off_lets_the_run_finish(
     hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, entry: MockConfigEntry
 ) -> None:
     heater_care_box(aioclient_mock, state="running", burner_active=True, auto_enabled=True)
@@ -678,11 +688,44 @@ async def test_heater_care_off_stops_at_once_and_says_so(
     await hass.services.async_call(
         CLIMATE, SERVICE_SET_HVAC_MODE, {ATTR_ENTITY_ID: CLIMATE_ID, ATTR_HVAC_MODE: "off"}, blocking=True
     )
-    # Home Assistant cannot ask "let it finish?": the box stops at once and logs it as an early stop from here
+    # Home Assistant never asks to stop a run early: Auto goes off and the box decides when the run may stop
     assert sent(aioclient_mock) == [
-        {"cmd": "auto", "enabled": False, "finish_run": False, "source": "home_assistant"},
+        {"cmd": "auto", "enabled": False, "source": "home_assistant"},
         {"cmd": "stop", "source": "home_assistant"},
     ]
+
+
+REFUSED = {
+    "ok": False,
+    "error": "Heater Care: the run has 17 more min of its minimum run to go before it can stop. "
+    "Only the Tillerwell app can stop it sooner.",
+    "care": "min_run",
+    "left_s": 1013,
+}
+
+
+async def test_heater_care_lock_off_inside_minimum_run_is_not_an_error(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, entry: MockConfigEntry
+) -> None:
+    """Firmware 1.61: the stop is refused inside the minimum run, but thermostat off was taken, so no error."""
+    heater_care_box(aioclient_mock, REFUSED, state="running", burner_active=True, auto_enabled=True)
+    await setup(hass, entry)
+    await hass.services.async_call(
+        CLIMATE, SERVICE_SET_HVAC_MODE, {ATTR_ENTITY_ID: CLIMATE_ID, ATTR_HVAC_MODE: "off"}, blocking=True
+    )
+    assert [c["cmd"] for c in sent(aioclient_mock)][-2:] == ["auto", "stop"]
+
+
+async def test_heater_care_lock_refusal_shows_the_reason(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, entry: MockConfigEntry
+) -> None:
+    """Firmware 1.61: a preheat stop inside the minimum run is refused and Home Assistant says why."""
+    heater_care_box(aioclient_mock, REFUSED, state="running", burner_active=True)
+    await setup(hass, entry)
+    with pytest.raises(HomeAssistantError, match="17 more min of its minimum run"):
+        await hass.services.async_call(
+            SWITCH, SERVICE_TURN_OFF, {ATTR_ENTITY_ID: "switch.hearth_a1b2c3_heater"}, blocking=True
+        )
 
 
 async def test_heater_care_one_degree_range(
@@ -727,7 +770,7 @@ async def test_heater_care_unavailable_on_older_firmware(
     assert hass.states.get("sensor.hearth_a1b2c3_minimum_run_left").state == "unavailable"
 
 
-async def test_heater_care_switch_off_stops_at_once(
+async def test_heater_care_switch_off_stops(
     hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, entry: MockConfigEntry
 ) -> None:
     heater_care_box(aioclient_mock, state="running", burner_active=True, auto_enabled=True)
@@ -736,6 +779,6 @@ async def test_heater_care_switch_off_stops_at_once(
         SWITCH, SERVICE_TURN_OFF, {ATTR_ENTITY_ID: "switch.hearth_a1b2c3_heater"}, blocking=True
     )
     assert sent(aioclient_mock) == [
-        {"cmd": "auto", "enabled": False, "finish_run": False, "source": "home_assistant"},
+        {"cmd": "auto", "enabled": False, "source": "home_assistant"},
         {"cmd": "stop", "source": "home_assistant"},
     ]
