@@ -856,10 +856,22 @@ async def test_fuel_today_by_power_level(
     await setup(hass, entry)
     assert hass.states.get("sensor.hearth_a1b2c3_fuel_today_high_estimated").state == "1.06"
     assert hass.states.get("sensor.hearth_a1b2c3_fuel_today_low_estimated").state == "0.3"
-    assert hass.states.get("sensor.hearth_a1b2c3_fuel_cost_today_middle_estimated").state == "0.55"
-    assert hass.states.get("sensor.hearth_a1b2c3_fuel_cost_today_starting_estimated").state == "0.03"
+    assert hass.states.get("sensor.hearth_a1b2c3_fuel_cost_today_middle_estimated").state == "0.554"
+    assert hass.states.get("sensor.hearth_a1b2c3_fuel_cost_today_starting_estimated").state == "0.032"
     asked = [str(c[1]) for c in aioclient_mock.mock_calls if "/api/fuel/day" in str(c[1])]
     assert asked and "date=" in asked[0]
+
+
+async def test_fuel_cost_by_level_on_the_day_of_the_update(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, entry: MockConfigEntry
+) -> None:
+    # the live box on 1.65: 0.249 l seen on middle of 2.206 l, and the box gave middle the whole day's cost
+    serve(aioclient_mock, BASE, {**INFO, "version": "1.0065"})
+    part = {**FUEL_DAY, "litres": 2.206, "cost": 3.486}
+    part["levels"] = [{"level": "middle", "minutes": 42, "litres": 0.249, "cost": 3.486}]
+    aioclient_mock.get(f"{BASE}/api/fuel/day", json=part)
+    await setup(hass, entry)
+    assert hass.states.get("sensor.hearth_a1b2c3_fuel_cost_today_middle_estimated").state == "0.393"
 
 
 async def test_fuel_today_by_power_level_needs_164(

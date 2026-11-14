@@ -60,10 +60,18 @@ def _fuel_level(level: str, field: str) -> Callable[[HearthData], Any]:
     """Today's litres or cost at one power level, from GET /api/fuel/day (Hearth 1.64)."""
 
     def read(data: HearthData) -> Any:
-        for entry in (data.fuel_day or {}).get("levels") or []:
-            if entry.get("level") == level:
-                return entry.get(field)
-        return None
+        day = data.fuel_day or {}
+        levels = day.get("levels") or []
+        entry = next((e for e in levels if e.get("level") == level), None)
+        if entry is None:
+            return None
+        if field != "cost":
+            return entry.get(field)
+        # its litres at the day's cost per litre: firmware 1.64 and 1.65 put the whole day's cost on the levels seen
+        # on the day of the update, so it is worked out here
+        seen = sum(e.get("litres") or 0 for e in levels)
+        total = max(day.get("litres") or 0, seen)
+        return round((day.get("cost") or 0) * (entry.get("litres") or 0) / total, 3) if total > 0 else 0
 
     return read
 
