@@ -177,3 +177,10 @@ class HearthClimate(HearthEntity, ClimateEntity):
     async def async_set_external_temperature(self, temperature: float) -> None:
         """Entity service: tell the box the room temperature (used for 90 s)."""
         await self.coordinator.async_command("external_temp", value=temperature)
+
+
+if not hasattr(ClimateEntity, "native_current_temperature"):
+    # Home Assistant before 2026.11 reads the old names (the test package still ships 2026.10.4). From 2026.11 they
+    # are worked out from the native ones, with unit conversion, so they are only filled in here on older versions.
+    HearthClimate.current_temperature = property(lambda self: self.native_current_temperature)  # type: ignore[assignment]
+    HearthClimate.target_temperature = property(lambda self: self.native_target_temperature)  # type: ignore[assignment]
