@@ -28,6 +28,8 @@ from .const import (
     HEATER_CARE_FIELD,
     MAX_AUTO_TEMP,
     MIN_AUTO_TEMP,
+    PRESET_PREHEAT,
+    PRESET_THERMOSTAT,
     SERVICE_SET_EXTERNAL_TEMPERATURE,
     SERVICE_SET_FUEL_PRICE,
     SERVICE_SET_TIMERS,
@@ -116,9 +118,10 @@ class HearthClimate(HearthEntity, ClimateEntity):
     # The pre-2026.11 name. Only CI needs it: pytest-homeassistant-custom-component still ships 2026.10.
     _attr_temperature_unit = UnitOfTemperature.CELSIUS
     _attr_hvac_modes = [HVACMode.OFF, HVACMode.HEAT]
-    _attr_supported_features = (
+    _base_features = (
         ClimateEntityFeature.TARGET_TEMPERATURE | ClimateEntityFeature.TURN_ON | ClimateEntityFeature.TURN_OFF
     )
+    _attr_preset_modes = [PRESET_PREHEAT, PRESET_THERMOSTAT]
     _attr_min_temp = MIN_AUTO_TEMP
     _attr_max_temp = MAX_AUTO_TEMP
     _attr_target_temperature_step = 1
@@ -131,6 +134,30 @@ class HearthClimate(HearthEntity, ClimateEntity):
     @property
     def _running(self) -> bool:
         return self.status.get("state") in ACTIVE_STATES
+
+    @property
+    def supported_features(self) -> ClimateEntityFeature:
+        """Preset (preheat / thermostat) from Hearth 1.68, which can switch a running heater with no stop."""
+        if self.coordinator.run_mode_supported:
+            return self._base_features | ClimateEntityFeature.PRESET_MODE
+        return self._base_features
+
+    @property
+    def preset_mode(self) -> str | None:
+        """What kind of run is going: preheat (stops on its time) or thermostat (stops at the set temperature)."""
+        mode = self.status.get("run_mode")
+        return mode if self._running and mode in (PRESET_PREHEAT, PRESET_THERMOSTAT) else None
+
+    async def async_set_preset_mode(self, preset_mode: str) -> None:
+        """Switch the running heater between preheat and thermostat. The burner keeps going: no stop, no restart."""
+        if preset_mode not in (PRESET_PREHEAT, PRESET_THERMOSTAT):
+            raise ServiceValidationError(f"Unknown preset {preset_mode}")
+        if not self._running:
+            raise ServiceValidationError(
+                "The heater is not running. Preheat and thermostat switch a run that is going; "
+                "to start one, use Heat or the Preheat button."
+            )
+        await self.coordinator.async_command("run_mode", mode=preset_mode, source=SOURCE)
 
     @property
     def hvac_mode(self) -> HVACMode:

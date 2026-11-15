@@ -10,7 +10,9 @@ from homeassistant.components.button import DOMAIN as BUTTON
 from homeassistant.components.button import SERVICE_PRESS
 from homeassistant.components.climate import (
     ATTR_HVAC_MODE,
+    ATTR_PRESET_MODE,
     SERVICE_SET_HVAC_MODE,
+    SERVICE_SET_PRESET_MODE,
     SERVICE_SET_TEMPERATURE,
 )
 from homeassistant.components.climate import (
@@ -918,3 +920,83 @@ async def test_set_fuel_price_backdated(hass: HomeAssistant, box: AiohttpClientM
             {ATTR_ENTITY_ID: CLIMATE_ID, "price": 1.5, "from_date": (today - timedelta(days=400)).isoformat()},
             blocking=True,
         )
+
+
+# ---- Hearth 1.68: switching a running heater, and the thermostat while it cools down ----------------------------
+
+
+async def test_off_while_cooling_down_sends_no_stop(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, entry: MockConfigEntry
+) -> None:
+    """Thermostat off during the purge after a run: Auto goes off and nothing else, so it stays off."""
+    heater_care_box(aioclient_mock, REFUSED, state="cooldown", state_raw=4, auto_enabled=True)
+    await setup(hass, entry)
+    assert hass.states.get(CLIMATE_ID).state == "heat"
+    await hass.services.async_call(
+        CLIMATE, SERVICE_SET_HVAC_MODE, {ATTR_ENTITY_ID: CLIMATE_ID, ATTR_HVAC_MODE: "off"}, blocking=True
+    )
+    assert sent(aioclient_mock) == [{"cmd": "auto", "enabled": False, "source": "home_assistant"}]
+    last = hass.states.get("sensor.hearth_a1b2c3_last_start_or_stop")
+    assert last.attributes["result"] == "done"
+    assert "will not start again when the room cools" in last.attributes["reason"]
+
+
+async def test_set_temperature_while_cooling_down(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, entry: MockConfigEntry
+) -> None:
+    heater_care_box(aioclient_mock, state="cooldown", state_raw=4, auto_enabled=True)
+    await setup(hass, entry)
+    await hass.services.async_call(
+        CLIMATE, SERVICE_SET_TEMPERATURE, {ATTR_ENTITY_ID: CLIMATE_ID, ATTR_TEMPERATURE: 18}, blocking=True
+    )
+    assert sent(aioclient_mock) == [{"cmd": "auto_range", "low": 17, "high": 18, "source": "home_assistant"}]
+
+
+async def test_off_with_any_refused_stop_is_not_an_error(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, entry: MockConfigEntry
+) -> None:
+    """Thermostat off was taken; a stop the box turns down for another reason does not make it an error."""
+    other = {"ok": False, "error": "not now", "care": None, "left_s": 0}
+    heater_care_box(aioclient_mock, other, state="running", burner_active=True, auto_enabled=True)
+    await setup(hass, entry)
+    await hass.services.async_call(
+        CLIMATE, SERVICE_SET_HVAC_MODE, {ATTR_ENTITY_ID: CLIMATE_ID, ATTR_HVAC_MODE: "off"}, blocking=True
+    )
+    assert [c["cmd"] for c in sent(aioclient_mock)] == ["auto", "stop"]
+
+
+async def test_preset_switches_a_running_heater(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, entry: MockConfigEntry
+) -> None:
+    heater_care_box(
+        aioclient_mock, state="late-run", state_raw=3, burner_active=True, os_version="1.0068", run_mode="preheat"
+    )
+    await setup(hass, entry)
+    climate = hass.states.get(CLIMATE_ID)
+    assert climate.attributes["preset_modes"] == ["preheat", "thermostat"]
+    assert climate.attributes["preset_mode"] == "preheat"
+    await hass.services.async_call(
+        CLIMATE, SERVICE_SET_PRESET_MODE, {ATTR_ENTITY_ID: CLIMATE_ID, ATTR_PRESET_MODE: "thermostat"}, blocking=True
+    )
+    assert sent(aioclient_mock) == [{"cmd": "run_mode", "mode": "thermostat", "source": "home_assistant"}]
+
+
+async def test_preset_needs_a_run(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, entry: MockConfigEntry
+) -> None:
+    heater_care_box(aioclient_mock, state="cooldown", state_raw=4, os_version="1.0068", run_mode="thermostat")
+    await setup(hass, entry)
+    assert hass.states.get(CLIMATE_ID).attributes["preset_mode"] is None
+    with pytest.raises(ServiceValidationError, match="not running"):
+        await hass.services.async_call(
+            CLIMATE, SERVICE_SET_PRESET_MODE, {ATTR_ENTITY_ID: CLIMATE_ID, ATTR_PRESET_MODE: "preheat"}, blocking=True
+        )
+    assert sent(aioclient_mock) == []
+
+
+async def test_no_preset_before_1_68(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, entry: MockConfigEntry
+) -> None:
+    heater_care_box(aioclient_mock, state="running", burner_active=True, os_version="1.0067", run_mode="preheat")
+    await setup(hass, entry)
+    assert "preset_modes" not in hass.states.get(CLIMATE_ID).attributes

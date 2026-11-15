@@ -22,6 +22,7 @@ from homeassistant.util.unit_conversion import TemperatureConverter
 
 from .api import HearthClient, HearthConnectionError, HearthError, HearthRequestError
 from .const import (
+    ACTIVE_STATES,
     CLOCK_SYNC_RETRY,
     CONF_EXTERNAL_TEMP_ENTITY,
     DOMAIN,
@@ -34,9 +35,9 @@ from .const import (
     MANUFACTURER,
     MODEL,
     REDISCOVER_INTERVAL,
+    RUN_MODE_FIRMWARE,
     SCAN_INTERVAL,
     SOURCE,
-    STATE_IDLE,
     TIMERS_INTERVAL,
 )
 from .discovery import async_discover_hosts, box_name, title_for
@@ -353,6 +354,8 @@ class HearthCoordinator(DataUpdateCoordinator[HearthData]):
         Heater Care (firmware 1.61) does not let Home Assistant stop a run inside its minimum run. Thermostat off is
         still accepted: Auto goes off and the box stops the run once its minimum run is up, so that is not an error.
         Any other stop the box refuses (a preheat) raises, with the box's reason. Only the Tillerwell app can override.
+        A heater already cooling down (or idle) gets no stop: once Auto is off there is nothing left to stop, and a
+        refused stop must not turn a thermostat off that worked into an error.
         Returns True when the box is letting the run finish its minimum run before it stops.
         """
         status = self.data.status if self.data else {}
@@ -363,7 +366,7 @@ class HearthCoordinator(DataUpdateCoordinator[HearthData]):
                 await self.async_command("auto", enabled=False, source=SOURCE)
             else:
                 await self.async_command("auto", enabled=False)
-        if status.get("state") not in (None, STATE_IDLE):
+        if status.get("state") in ACTIVE_STATES:
             if not care:
                 await self.async_command("stop")
                 return False
@@ -371,14 +374,24 @@ class HearthCoordinator(DataUpdateCoordinator[HearthData]):
             try:
                 await self.client.command("stop", source=SOURCE)
             except HearthRequestError as err:
-                if not (auto_was_on and err.care == "min_run"):
+                if not auto_was_on:
                     raise HomeAssistantError(str(err)) from err
-                waiting = True
+                # thermostat off was taken; the box decides when the run stops
+                waiting = err.care == "min_run"
+                if not waiting:
+                    _LOGGER.warning("Thermostat off, but %s did not take the stop: %s", self.config_entry.title, err)
             except HearthError as err:
                 raise HomeAssistantError(f"Could not reach {self.config_entry.title}: {err}") from err
             await self.async_request_refresh()
             return waiting
         return False
+
+    @property
+    def run_mode_supported(self) -> bool:
+        """Hearth 1.68: a running heater can be switched between preheat and thermostat (`run_mode`)."""
+        status = self.data.status if self.data else {}
+        version = status.get("os_version") or self._info.get("version")
+        return (roamos_number(version) or 0) >= RUN_MODE_FIRMWARE
 
     async def async_set_timers(self, timers: list[dict[str, Any]]) -> None:
         """Replace the box's timer list. The box checks every rule and says why if it refuses."""

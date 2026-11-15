@@ -19,6 +19,10 @@ TIMERS_INTERVAL = timedelta(minutes=1)
 # Today's fuel by power level (GET /api/fuel/day, Hearth 1.64): the box counts it by the minute.
 FUEL_DAY_INTERVAL = timedelta(minutes=5)
 FUEL_DAY_FIRMWARE = 10064  # RoamOS 1.0064 as a number
+# Switching a running heater between preheat and thermostat with no stop (`run_mode`, Hearth 1.68)
+RUN_MODE_FIRMWARE = 10068
+PRESET_PREHEAT = "preheat"
+PRESET_THERMOSTAT = "thermostat"
 FUEL_LEVELS = ("starting", "low", "middle", "high")
 # The box only trusts an external temperature for 90 s, so refresh well inside that.
 EXTERNAL_TEMP_REFRESH = timedelta(seconds=30)

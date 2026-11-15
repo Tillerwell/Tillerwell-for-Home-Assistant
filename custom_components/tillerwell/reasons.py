@@ -106,6 +106,11 @@ def explain_stop(before: dict[str, Any], after: dict[str, Any], waiting: bool) -
             text += " The run had done its 30-minute minimum."
         return text + " The heater now cools down, which takes a few minutes."
     if state in (STATE_COOLDOWN, STATE_FINAL_SHUTDOWN):
+        if auto_was_on:
+            return (
+                "Thermostat off. The heater was already cooling down after a run: it finishes that by itself and "
+                "then stays off, and it will not start again when the room cools."
+            )
         return "The heater was already cooling down after a run. It finishes that by itself and then stays off."
     if auto_was_on:
         return "Thermostat off. The heater was not running, so it just stays off."
