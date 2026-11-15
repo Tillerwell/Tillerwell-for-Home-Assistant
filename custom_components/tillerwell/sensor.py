@@ -167,6 +167,13 @@ def _info(section: str, key: str, scale: float = 1) -> Callable[[HearthData], An
     return value
 
 
+def _iso(epoch: Any) -> str | None:
+    """An epoch from the box as an ISO date and time (UTC), or None."""
+    if not isinstance(epoch, (int, float)) or epoch <= 0:
+        return None
+    return datetime.fromtimestamp(epoch, tz=UTC).isoformat()
+
+
 def _heater_faults(data: HearthData) -> list[dict[str, Any]]:
     report = _heater_info(data).get("report")
     faults = report.get("faults") if isinstance(report, dict) else None
@@ -654,7 +661,17 @@ class HearthSensor(HearthEntity, SensorEntity):
     def extra_state_attributes(self) -> dict[str, Any] | None:
         """The heater's fault history, newest first, on its last-fault sensor."""
         if self.entity_description.key == "heater_last_fault":
-            return {"faults": _heater_faults(self.coordinator.data)}
+            # firmware 1.70: each fault's seen_at (epoch) is when the box first read it, as the heater keeps no
+            # dates; "seen" gives it as a date and time, and read_at is when the heater was last read
+            faults = [
+                {**f, "seen": _iso(f.get("seen_at"))} if isinstance(f, dict) and f.get("seen_at") else f
+                for f in _heater_faults(self.coordinator.data)
+            ]
+            attrs: dict[str, Any] = {"faults": faults}
+            read_at = _heater_info(self.coordinator.data).get("read_at")
+            if read_at:
+                attrs["read_at"] = _iso(read_at)
+            return attrs
         if self.entity_description.key == "heater_care_early_stop_unseen":
             thermo = self.status.get("thermo")
             last = thermo.get("last_early_stop") if isinstance(thermo, dict) else None

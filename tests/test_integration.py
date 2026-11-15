@@ -185,17 +185,12 @@ async def test_switch_buttons_numbers(hass: HomeAssistant, box: AiohttpClientMoc
     await hass.services.async_call(
         BUTTON, SERVICE_PRESS, {ATTR_ENTITY_ID: "button.hearth_a1b2c3_water_pump_only"}, blocking=True
     )
-    await hass.services.async_call(
-        NUMBER,
-        SERVICE_SET_VALUE,
-        {ATTR_ENTITY_ID: "number.hearth_a1b2c3_preheat_coolant_limit", ATTR_VALUE: 80},
-        blocking=True,
-    )
+    # 1.18.0: no preheat coolant limit entity; a preheat stops at the heater's own coolant target (firmware 1.70)
+    assert hass.states.get("number.hearth_a1b2c3_preheat_coolant_limit") is None
     assert sent(box) == [
         {"cmd": "start_preheat", "minutes": 30},
         {"cmd": "freeze", "enabled": True},
         {"cmd": "start_pump"},
-        {"cmd": "preheat_temp", "value": 80},
     ]
 
 
@@ -240,10 +235,14 @@ async def test_service_and_heater_settings(
         **STATUS,
         "pump_minutes": 90,
         "heater_info": {
+            "read_at": 1763229600,
             "settings": {"wait_temp": 88, "pump_standby": True},
             "report": {
                 "starts": 3,
-                "faults": [{"code": 13, "name": "No ignition"}, {"code": 78, "name": "Flame break"}],
+                "faults": [
+                    {"code": 13, "name": "No ignition", "seen_at": 1763229600, "seen_first_read": True},
+                    {"code": 78, "name": "Flame break", "seen_at": None},
+                ],
             },
         },
     }
@@ -257,6 +256,10 @@ async def test_service_and_heater_settings(
     assert hass.states.get("switch.hearth_a1b2c3_heater_water_pump_in_standby").state == "on"
     last = hass.states.get("sensor.hearth_a1b2c3_heater_s_last_recorded_fault")
     assert last.state == "No ignition" and len(last.attributes["faults"]) == 2
+    # firmware 1.70: when the box first read each fault, and when it last read the heater
+    assert last.attributes["faults"][0]["seen"] == "2025-11-15T18:00:00+00:00"
+    assert "seen" not in last.attributes["faults"][1]
+    assert last.attributes["read_at"] == "2025-11-15T18:00:00+00:00"
     for button in ("prime_fuel", "fan_test", "stop"):
         await hass.services.async_call(
             BUTTON, SERVICE_PRESS, {ATTR_ENTITY_ID: f"button.hearth_a1b2c3_{button}"}, blocking=True

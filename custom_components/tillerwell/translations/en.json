@@ -90,7 +90,6 @@
     },
     "number": {
       "preheat_minutes": {"name": "Preheat duration"},
-      "preheat_temp": {"name": "Preheat coolant limit"},
       "prevent_freezing_target": {"name": "Prevent freezing target"},
       "fuel_price": {"name": "Fuel price"},
       "fuel_factor": {"name": "Fuel calibration factor"},

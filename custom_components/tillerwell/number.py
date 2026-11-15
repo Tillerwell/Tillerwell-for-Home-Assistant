@@ -22,11 +22,9 @@ from .const import (
     MAX_FUEL_FACTOR,
     MAX_FUEL_PRICE,
     MAX_FUEL_RATE,
-    MAX_PREHEAT_COOLANT,
     MAX_PREHEAT_MINUTES,
     MAX_TANK_LITRES,
     MIN_FUEL_FACTOR,
-    MIN_PREHEAT_COOLANT,
     MIN_PREHEAT_MINUTES,
 )
 from .coordinator import HearthConfigEntry, HearthCoordinator
@@ -91,19 +89,8 @@ NUMBERS: tuple[HearthNumberDescription, ...] = (
         cmd="preheat_minutes",
         params_fn=lambda value, _status: {"value": int(value)},
     ),
-    HearthNumberDescription(
-        key="preheat_temp",
-        translation_key="preheat_temp",
-        device_class=NumberDeviceClass.TEMPERATURE,
-        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
-        native_min_value=MIN_PREHEAT_COOLANT,
-        native_max_value=MAX_PREHEAT_COOLANT,
-        native_step=1,
-        entity_category=EntityCategory.CONFIG,
-        field="preheat_temp",
-        cmd="preheat_temp",
-        params_fn=lambda value, _status: {"value": value},
-    ),
+    # "Preheat coolant limit" (preheat_temp) is gone since 1.18.0: from firmware 1.70 a preheat stops at the heater's
+    # own coolant target (heater_coolant_target below), so it was the same setting twice.
     HearthNumberDescription(
         key="prevent_freezing_target",
         translation_key="prevent_freezing_target",
