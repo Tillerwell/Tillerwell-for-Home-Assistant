@@ -117,7 +117,7 @@ data:
       duration_min: 180
       date: "2026-12-24"       # a one-off instead of days
       low_c: 19                # thermostat timers only
-      high_c: 22
+      high_c: 22               # to the tenth (19.2) with Hearth 1.77
 ```
 
 Optional keys: `id` (a new one is made if you leave it out) and `enabled`. An empty list clears all timers. The box checks every rule (30 minutes between runs, no one-off in the past, and so on) and tells you why if it refuses.

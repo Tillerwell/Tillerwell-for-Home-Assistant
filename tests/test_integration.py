@@ -430,8 +430,45 @@ async def test_set_timers_service(hass: HomeAssistant, box: AiohttpClientMocker,
         "date": None,
         "low_c": 19,
         "high_c": 22,
+        "high": 22.0,
     }
     assert put[1]["date"] == "2026-12-25" and put[1]["days"] == [] and put[1]["start_minute"] == 1080
+
+
+async def test_set_timers_in_tenths(hass: HomeAssistant, box: AiohttpClientMocker, entry: MockConfigEntry) -> None:
+    """Hearth 1.77: a timer's set temperature to the tenth goes as "high", high_c its whole degree, low_c below."""
+    await setup(hass, entry)
+    await hass.services.async_call(
+        DOMAIN,
+        "set_timers",
+        {
+            ATTR_ENTITY_ID: CLIMATE_ID,
+            "timers": [
+                {
+                    "id": "A",
+                    "mode": "thermostat",
+                    "start": "06:30",
+                    "duration_min": 60,
+                    "days": ["mon"],
+                    "low_c": 18,
+                    "high_c": 19.2,
+                },
+                {
+                    "id": "B",
+                    "mode": "thermostat",
+                    "start": "18:00",
+                    "duration_min": 60,
+                    "days": ["tue"],
+                    "low_c": 19,
+                    "high_c": 19.5,
+                },
+            ],
+        },
+        blocking=True,
+    )
+    put = [c for c in box.mock_calls if c[0] == "PUT"][-1][2]
+    assert (put[0]["low_c"], put[0]["high_c"], put[0]["high"]) == (18, 19, 19.2)
+    assert (put[1]["low_c"], put[1]["high_c"], put[1]["high"]) == (19, 20, 19.5)
 
 
 async def test_set_timers_rejected_by_box(

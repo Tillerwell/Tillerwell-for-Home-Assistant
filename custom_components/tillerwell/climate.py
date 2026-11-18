@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import uuid
 from datetime import date, timedelta
 from typing import Any
@@ -55,7 +56,8 @@ TIMER_SCHEMA = vol.Schema(
         vol.Optional("days", default=[]): vol.All(cv.ensure_list, [vol.In(WEEKDAYS)]),
         vol.Optional("date"): cv.date,
         vol.Optional("low_c", default=19): vol.All(vol.Coerce(int), vol.Range(min=0, max=30)),
-        vol.Optional("high_c", default=22): vol.All(vol.Coerce(int), vol.Range(min=0, max=30)),
+        # the set temperature, to the tenth (Hearth 1.77; older firmware keeps the nearest whole degree)
+        vol.Optional("high_c", default=22): vol.All(vol.Coerce(float), vol.Range(min=0, max=30)),
     }
 )
 
@@ -67,6 +69,10 @@ def timer_to_wire(timer: dict[str, Any]) -> dict[str, Any]:
     days = sorted({WEEKDAYS.index(day) + 1 for day in timer["days"]})
     if date is None and not days:
         raise ServiceValidationError("Each timer needs either days or a date")
+    # Hearth 1.77 takes the set temperature to the tenth as "high"; high_c stays its nearest whole degree (halves up),
+    # which older firmware needs (it refuses anything else), with low_c below it
+    high = round(timer["high_c"], 1)
+    whole = math.floor(high + 0.5)
     return {
         "id": timer.get("id") or str(uuid.uuid4()).upper(),
         "enabled": timer["enabled"],
@@ -75,8 +81,9 @@ def timer_to_wire(timer: dict[str, Any]) -> dict[str, Any]:
         "duration_min": timer["duration_min"],
         "days": [] if date else days,
         "date": date.isoformat() if date else None,
-        "low_c": timer["low_c"],
-        "high_c": timer["high_c"],
+        "low_c": min(timer["low_c"], whole - 1),
+        "high_c": whole,
+        "high": high,
     }
 
 
