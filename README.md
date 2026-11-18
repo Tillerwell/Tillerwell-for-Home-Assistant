@@ -29,6 +29,7 @@ Control an Autoterm diesel heater from Home Assistant through a **Tillerwell Hea
 | **Heater locked** (problem sensor), **Unlock heater** (button) | The heater locks itself after repeated failed starts or overheating; Unlock clears it once you've fixed the cause. The box only takes it while the heater is off. Needs Hearth firmware 1.42 |
 | **Read heater info** (button) and the **Heater …** diagnostics | Asks the heater for its own settings and lifetime report: its coolant target, its firmware, starts, failed lights and running time (time on high, middle and low, second tries and power cuts are disabled by default). *Unavailable* until you press the button once; the box also picks up the settings when the controller reads them at power-up. Read only. Needs Hearth firmware 1.42; the report's layout is not yet checked against a real heater |
 | **Next timer, Last timer event, Timers** | The schedule stored on the box |
+| **Run ends** | When the run going ends: a running timer's end, or the thermostat's run time (Hearth firmware 1.74). Unknown when neither is set |
 | **Prevent freezing** (switch + target) | Starts the heater at the frost floor even if you pressed Stop |
 | **Preheat duration** (number) | The box's saved setting. A preheat stops at the heater's own coolant target (Heater coolant target); the separate Preheat coolant limit was removed in 1.18.0 |
 | **Next start temperature** | The cabin temperature the thermostat's next start happens at. Needs RoamOS 1.0038 or later; *Unavailable* before that |
@@ -130,6 +131,7 @@ Timers only fire when the box knows the time and time zone. A boat with no inter
 | `tillerwell.set_timers` | Replace the timer list (above) |
 | `tillerwell.set_external_temperature` | Send a room temperature in °C |
 | `tillerwell.set_fuel_price` | Set the diesel price per litre, optionally `from_date` (today or up to a year back): the box works out every day's cost from that date again. Needs Hearth firmware 1.63 for the date |
+| `tillerwell.set_run_end` | `minutes` from now (0 to 1440): moves a running timer's end earlier or later, gives the thermostat a run time or changes it (`0` removes it), or gives a running preheat more time. Hearth firmware 1.74. Never stops a run inside Heater Care's minimum run |
 
 ## Security
 

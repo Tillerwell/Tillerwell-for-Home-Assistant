@@ -23,6 +23,7 @@ from homeassistant.util import dt as dt_util
 from .const import (
     ACTIVE_STATES,
     ATTR_FROM,
+    ATTR_MINUTES,
     ATTR_PRICE,
     ATTR_TIMERS,
     HEATER_CARE_FIELD,
@@ -32,6 +33,7 @@ from .const import (
     PRESET_THERMOSTAT,
     SERVICE_SET_EXTERNAL_TEMPERATURE,
     SERVICE_SET_FUEL_PRICE,
+    SERVICE_SET_RUN_END,
     SERVICE_SET_TIMERS,
     SOURCE,
 )
@@ -102,6 +104,11 @@ async def async_setup_entry(
             vol.Optional(ATTR_FROM): cv.date,
         },
         "async_set_fuel_price",
+    )
+    platform.async_register_entity_service(
+        SERVICE_SET_RUN_END,
+        {vol.Required(ATTR_MINUTES): vol.All(vol.Coerce(int), vol.Range(min=0, max=1440))},
+        "async_set_run_end",
     )
 
 
@@ -226,6 +233,12 @@ class HearthClimate(HearthEntity, ClimateEntity):
         if from_date > today or from_date < today - timedelta(days=365):
             raise ServiceValidationError("The date must be today or up to a year back.")
         await self.coordinator.async_command("fuel_price", value=price, **{"from": from_date.isoformat()})
+
+    async def async_set_run_end(self, minutes: int) -> None:
+        """Entity service (Hearth 1.74, `run_end`): the run going ends this many minutes from now. Moves a running
+        timer's end, sets or changes the thermostat's run time (0 removes it), or gives a preheat more time. The box
+        still never stops a run inside Heater Care's minimum run."""
+        await self.coordinator.async_command("run_end", minutes=minutes)
 
     async def async_set_external_temperature(self, temperature: float) -> None:
         """Entity service: tell the box the room temperature (used for 90 s)."""

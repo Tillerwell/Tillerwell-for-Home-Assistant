@@ -138,6 +138,7 @@
       "fault_name": {"name": "Fault"},
       "last_fault_name": {"name": "Last fault"},
       "next_timer": {"name": "Next timer"},
+      "run_ends": {"name": "Run ends"},
       "timer_note": {"name": "Last timer event"},
       "auto_note": {"name": "Thermostat note"},
       "auto_start_at": {"name": "Next start temperature"},
@@ -218,6 +219,13 @@
           "name": "Timers",
           "description": "A list of timers. Each has mode (preheat or thermostat), start (time of day), duration_min (20 to 480), and either days (mon to sun) or a one-off date. Thermostat timers also take low_c and high_c. Optional: id, enabled."
         }
+      }
+    },
+    "set_run_end": {
+      "name": "Set run end",
+      "description": "When the heater's current run ends, in minutes from now (firmware 1.74 or later). Moves a running timer's end earlier or later, gives the thermostat a run time (or changes it; 0 removes it, so the thermostat stays on until turned off), or gives a running preheat more time. A run is never stopped inside Heater Care's minimum run.",
+      "fields": {
+        "minutes": {"name": "Minutes from now", "description": "0 to 1440. 0 only removes a thermostat's run time; a timer's run always has an end."}
       }
     },
     "set_fuel_price": {

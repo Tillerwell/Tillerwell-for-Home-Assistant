@@ -68,6 +68,7 @@ STATUS: dict[str, Any] = {
     "timezone": "GMT0BST,M3.5.0/1,M10.5.0",
     "next_timer": {"id": "T1", "start_epoch": 1793000000},
     "active_timer_id": None,
+    "run_ends_at": 1793003600,
     "timer_note": "06:30 skipped: heater already running",
     "ext_voltage": None,
     "supply_voltage": 12.6,

@@ -98,6 +98,12 @@ def _next_timer(data: HearthData) -> datetime | None:
     return datetime.fromtimestamp(nxt["start_epoch"], tz=UTC)
 
 
+def _run_ends(data: HearthData) -> datetime | None:
+    """Hearth 1.74: when the run going ends, a running timer's end or the thermostat's run time."""
+    at = data.status.get("run_ends_at")
+    return datetime.fromtimestamp(at, tz=UTC) if isinstance(at, int | float) else None
+
+
 def _supply_voltage(data: HearthData) -> Any:
     """The box's own reading of the supply, else the heater's (extended telemetry) on a box without the divider."""
     value = data.status.get("supply_voltage")
@@ -258,6 +264,12 @@ SENSORS: tuple[HearthSensorDescription, ...] = (
         translation_key="next_timer",
         device_class=SensorDeviceClass.TIMESTAMP,
         value_fn=_next_timer,
+    ),
+    HearthSensorDescription(
+        key="run_ends",
+        translation_key="run_ends",
+        device_class=SensorDeviceClass.TIMESTAMP,
+        value_fn=_run_ends,
     ),
     HearthSensorDescription(
         key="timer_note",

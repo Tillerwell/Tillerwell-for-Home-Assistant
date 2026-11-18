@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 
 import pytest
+import voluptuous as vol
 from homeassistant.components.button import DOMAIN as BUTTON
 from homeassistant.components.button import SERVICE_PRESS
 from homeassistant.components.climate import (
@@ -922,6 +923,24 @@ async def test_set_fuel_price_backdated(hass: HomeAssistant, box: AiohttpClientM
             "set_fuel_price",
             {ATTR_ENTITY_ID: CLIMATE_ID, "price": 1.5, "from_date": (today - timedelta(days=400)).isoformat()},
             blocking=True,
+        )
+
+
+# ---- Hearth 1.74: when the run ends --------------------------------------------------------------------------------
+
+
+async def test_run_end_sensor_and_service(
+    hass: HomeAssistant, box: AiohttpClientMocker, entry: MockConfigEntry
+) -> None:
+    """The Run ends sensor reads run_ends_at; set_run_end sends run_end with minutes from now (0 removes it)."""
+    await setup(hass, entry)
+    assert hass.states.get("sensor.hearth_a1b2c3_run_ends").state.startswith("2026-10-26T")
+    await hass.services.async_call(DOMAIN, "set_run_end", {ATTR_ENTITY_ID: CLIMATE_ID, "minutes": 90}, blocking=True)
+    await hass.services.async_call(DOMAIN, "set_run_end", {ATTR_ENTITY_ID: CLIMATE_ID, "minutes": 0}, blocking=True)
+    assert sent(box) == [{"cmd": "run_end", "minutes": 90}, {"cmd": "run_end", "minutes": 0}]
+    with pytest.raises(vol.Invalid):
+        await hass.services.async_call(
+            DOMAIN, "set_run_end", {ATTR_ENTITY_ID: CLIMATE_ID, "minutes": 2000}, blocking=True
         )
 
 

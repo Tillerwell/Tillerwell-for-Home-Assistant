@@ -27,6 +27,22 @@ set_external_temperature:
           step: 0.1
           unit_of_measurement: "°C"
 
+set_run_end:
+  target:
+    entity:
+      integration: tillerwell
+      domain: climate
+  fields:
+    minutes:
+      required: true
+      example: 90
+      selector:
+        number:
+          min: 0
+          max: 1440
+          step: 5
+          unit_of_measurement: min
+
 set_fuel_price:
   target:
     entity:

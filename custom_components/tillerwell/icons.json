@@ -52,6 +52,7 @@
       "fault_name": {"default": "mdi:alert-circle-outline"},
       "last_fault_name": {"default": "mdi:alert-circle-outline"},
       "next_timer": {"default": "mdi:calendar-clock"},
+      "run_ends": {"default": "mdi:timer-sand"},
       "prevent_freezing_note": {"default": "mdi:message-text-outline"},
       "state": {"default": "mdi:radiator"},
       "timer_note": {"default": "mdi:timer-cog-outline"},
@@ -110,6 +111,7 @@
   },
   "services": {
     "set_external_temperature": {"service": "mdi:thermometer-plus"},
+    "set_run_end": {"service": "mdi:timer-edit-outline"},
     "set_fuel_price": {"service": "mdi:gas-station"},
     "set_timers": {"service": "mdi:calendar-edit"}
   }
