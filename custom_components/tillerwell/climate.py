@@ -131,7 +131,8 @@ class HearthClimate(HearthEntity, ClimateEntity):
     _attr_preset_modes = [PRESET_PREHEAT, PRESET_THERMOSTAT]
     _attr_min_temp = MIN_AUTO_TEMP
     _attr_max_temp = MAX_AUTO_TEMP
-    _attr_target_temperature_step = 1
+    # tenths of a degree (Hearth 1.76 keeps the set temperature to 0.1; older firmware already took fractions)
+    _attr_target_temperature_step = 0.1
 
     def __init__(self, coordinator: HearthCoordinator) -> None:
         super().__init__(coordinator, "thermostat")
@@ -186,8 +187,11 @@ class HearthClimate(HearthEntity, ClimateEntity):
 
     @property
     def precision(self) -> float:
-        """Tenths from a Home Assistant sensor; the controller only reports whole degrees."""
-        return PRECISION_TENTHS if self.status.get("external_temp_active") else PRECISION_WHOLE
+        """Tenths from a Home Assistant sensor; the controller only reports whole degrees. A set temperature in
+        tenths (19.2) always shows tenths, or Home Assistant would round it to a whole degree."""
+        high = self.status.get("auto_high")
+        fractional = isinstance(high, (int, float)) and abs(high - round(high)) >= 0.05
+        return PRECISION_TENTHS if self.status.get("external_temp_active") or fractional else PRECISION_WHOLE
 
     @property
     def native_target_temperature(self) -> float | None:
@@ -204,7 +208,8 @@ class HearthClimate(HearthEntity, ClimateEntity):
         gap = (self.status.get("hyst_min") or 0.5) + (self.status.get("hyst_max") or 0.5)
         if high < gap:
             raise ServiceValidationError(f"The temperature must be at least {gap:g}°")
-        low = high - gap
+        high = round(high, 1)
+        low = round(high - gap, 1)
         if HEATER_CARE_FIELD in self.status:
             # no way to ask "let it finish?" here: a run inside its 30 minutes finishes them (the box's default)
             await self.coordinator.async_command("auto_range", low=low, high=high, source=SOURCE)

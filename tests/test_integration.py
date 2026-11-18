@@ -796,6 +796,21 @@ async def test_heater_care_one_degree_range(
     assert sent(aioclient_mock) == [{"cmd": "auto_range", "low": 20, "high": 21, "source": "home_assistant"}]
 
 
+async def test_set_temperature_in_tenths(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, entry: MockConfigEntry
+) -> None:
+    """Hearth 1.76: the set temperature goes in tenths (19.2), without float noise, and shows as 19.2."""
+    heater_care_box(aioclient_mock, auto_high=19.2, auto_low=18.2)
+    await setup(hass, entry)
+    state = hass.states.get(CLIMATE_ID)
+    assert state.attributes["target_temp_step"] == 0.1
+    assert state.attributes["temperature"] == 19.2
+    await hass.services.async_call(
+        CLIMATE, SERVICE_SET_TEMPERATURE, {ATTR_ENTITY_ID: CLIMATE_ID, ATTR_TEMPERATURE: 19.3}, blocking=True
+    )
+    assert sent(aioclient_mock) == [{"cmd": "auto_range", "low": 18.3, "high": 19.3, "source": "home_assistant"}]
+
+
 async def test_heater_care_reset_button(
     hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, entry: MockConfigEntry
 ) -> None:
