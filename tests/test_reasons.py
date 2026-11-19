@@ -21,7 +21,7 @@ def test_thermostat_on_while_resting() -> None:
     }
     text = explain_thermostat_on(after)
     assert "resting for another 10 min" in text and "stops at 21°" in text
-    after["thermo"]["min_off_left_s"] = 14   # Hearth 1.79: a 20 second rest
+    after["thermo"]["min_off_left_s"] = 14  # Hearth 1.79: a 20 second rest
     assert "resting for another 14 s" in explain_thermostat_on(after)
 
 
