@@ -27,6 +27,8 @@ class HearthSwitchDescription(SwitchEntityDescription):
     set_fn: Callable[[HearthCoordinator, bool], Coroutine[Any, Any, None]]
     # Unavailable, not unknown, while there is nothing to show (the heater's own settings before a read).
     needs_value: bool = False
+    # Unavailable while this says the box would refuse the switch.
+    available_fn: Callable[[dict[str, Any]], bool] | None = None
 
 
 def _pump_standby(status: dict[str, Any]) -> bool | None:
@@ -72,6 +74,11 @@ async def _run(coordinator: HearthCoordinator, on: bool) -> None:
         await coordinator.async_act(ACTION_STOP, coordinator.async_stop)
 
 
+def _once_available(status: dict[str, Any]) -> bool:
+    """Turn off once warm (firmware 1.78): only with the thermostat on and no timer running (timers have an end)."""
+    return "auto_once" in status and bool(status.get("auto_enabled")) and not status.get("active_timer_id")
+
+
 def _running(status: dict[str, Any]) -> bool | None:
     state = status.get("state")
     return None if state is None else state in ACTIVE_STATES
@@ -84,6 +91,13 @@ SWITCHES: tuple[HearthSwitchDescription, ...] = (
         translation_key="prevent_freezing",
         is_on_fn=_flag("prevent_freezing_enabled"),
         set_fn=_command("freeze"),
+    ),
+    HearthSwitchDescription(
+        key="turn_off_once_warm",
+        translation_key="turn_off_once_warm",
+        is_on_fn=_flag("auto_once"),
+        set_fn=_command("auto_once"),
+        available_fn=_once_available,
     ),
     HearthSwitchDescription(
         key="use_external_temp",
@@ -142,8 +156,11 @@ class HearthSwitch(HearthEntity, SwitchEntity):
 
     @property
     def available(self) -> bool:
-        """A switch that needs a value is unavailable without one."""
-        return super().available and (not self.entity_description.needs_value or self.is_on is not None)
+        """A switch that needs a value is unavailable without one, and one the box would refuse is unavailable."""
+        d = self.entity_description
+        if not super().available or (d.needs_value and self.is_on is None):
+            return False
+        return d.available_fn is None or d.available_fn(self.status)
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn on."""

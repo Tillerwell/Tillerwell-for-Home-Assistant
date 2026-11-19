@@ -996,6 +996,32 @@ async def test_run_end_sensor_and_service(
         )
 
 
+# ---- Hearth 1.78: turn off once warm ------------------------------------------------------------------------------
+
+
+async def test_turn_off_once_warm_switch(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, entry: MockConfigEntry
+) -> None:
+    """The switch follows auto_once and sends auto_once; it is only there with the thermostat on and no timer."""
+    heater_care_box(
+        aioclient_mock, state="running", burner_active=True, auto_enabled=True, auto_once=False, active_timer_id=None
+    )
+    await setup(hass, entry)
+    once = "switch.hearth_a1b2c3_turn_off_once_warm"
+    assert hass.states.get(once).state == "off"
+    await hass.services.async_call(SWITCH, SERVICE_TURN_ON, {ATTR_ENTITY_ID: once}, blocking=True)
+    await hass.services.async_call(SWITCH, SERVICE_TURN_OFF, {ATTR_ENTITY_ID: once}, blocking=True)
+    assert sent(aioclient_mock) == [{"cmd": "auto_once", "enabled": True}, {"cmd": "auto_once", "enabled": False}]
+
+
+async def test_turn_off_once_warm_unavailable(
+    hass: HomeAssistant, box: AiohttpClientMocker, entry: MockConfigEntry
+) -> None:
+    """Older firmware (no auto_once) or the thermostat off: unavailable, since the box would refuse it."""
+    await setup(hass, entry)
+    assert hass.states.get("switch.hearth_a1b2c3_turn_off_once_warm").state == "unavailable"
+
+
 # ---- Hearth 1.68: switching a running heater, and the thermostat while it cools down ----------------------------
 
 

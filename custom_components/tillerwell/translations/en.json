@@ -204,6 +204,7 @@
     "switch": {
       "heater": {"name": "Heater"},
       "prevent_freezing": {"name": "Prevent freezing"},
+      "turn_off_once_warm": {"name": "Turn off once warm"},
       "use_external_temp": {"name": "Use external temperature"},
       "bypass_mode": {"name": "Bypass"},
       "pump_standby": {"name": "Heater water pump in standby"},

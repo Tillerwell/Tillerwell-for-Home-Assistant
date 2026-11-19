@@ -31,6 +31,7 @@ Control an Autoterm diesel heater from Home Assistant through a **Tillerwell Hea
 | **Next timer, Last timer event, Timers** | The schedule stored on the box |
 | **Run ends** | When the run going ends: a running timer's end, or the thermostat's run time (Hearth firmware 1.74). Unknown when neither is set |
 | **Prevent freezing** (switch + target) | Starts the heater at the frost floor even if you pressed Stop |
+| **Turn off once warm** (switch, Hearth 1.78) | With the thermostat on, it turns off when the room reaches the set temperature instead of starting again as it cools. Unavailable with the thermostat off or a timer running |
 | **Preheat duration** (number) | The box's saved setting. A preheat stops at the heater's own coolant target (Heater coolant target); the separate Preheat coolant limit was removed in 1.18.0 |
 | **Next start temperature** | The cabin temperature the thermostat's next start happens at. Needs RoamOS 1.0038 or later; *Unavailable* before that |
 | **Bypass, Use external temperature** (switches) | Bypass makes the box relay only and never send a command |

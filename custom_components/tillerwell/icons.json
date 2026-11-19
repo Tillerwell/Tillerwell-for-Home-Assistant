@@ -106,6 +106,7 @@
       "heater": {"default": "mdi:radiator", "state": {"on": "mdi:radiator"}},
       "prevent_freezing": {"default": "mdi:snowflake-alert"},
       "pump_standby": {"default": "mdi:water-pump-off", "state": {"on": "mdi:water-pump"}},
+      "turn_off_once_warm": {"default": "mdi:thermometer-check"},
       "use_external_temp": {"default": "mdi:thermometer-lines"}
     }
   },
