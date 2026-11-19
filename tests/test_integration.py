@@ -815,7 +815,7 @@ async def test_last_start_or_stop_explains_what_happens(
     )
     assert (
         hass.states.get("sensor.hearth_a1b2c3_last_start_or_stop").state
-        == "Started a 30-minute preheat. It ends early if the coolant reaches 88°."
+        == "Started a 30-minute preheat. It shuts down when the time is up."
     )
 
 

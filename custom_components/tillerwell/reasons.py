@@ -33,6 +33,13 @@ def _minutes(seconds: Any) -> int:
     return max(1, round(seconds / 60)) if isinstance(seconds, (int, float)) and seconds > 0 else 0
 
 
+def _rest(seconds: Any) -> str:
+    """The rest after a run: 20 seconds from Hearth 1.79 (20 minutes before), so say seconds under a minute."""
+    if not isinstance(seconds, (int, float)) or seconds <= 0:
+        return ""
+    return f"{round(seconds)} s" if seconds < 60 else f"{_minutes(seconds)} min"
+
+
 def _thermo(status: dict[str, Any]) -> dict[str, Any]:
     thermo = status.get("thermo")
     return thermo if isinstance(thermo, dict) else {}
@@ -56,17 +63,15 @@ def explain_refusal(action: str, message: str, care: str | None) -> str:
 
 def explain_preheat(after: dict[str, Any], minutes: int) -> str:
     """A timed preheat the box accepted."""
-    text = f"Started a {minutes}-minute preheat."
-    if isinstance(after.get("preheat_temp"), (int, float)):
-        text += f" It ends early if the coolant reaches {_deg(after['preheat_temp'])}."
-    return text
+    # Hearth 1.79: a preheat runs its whole time; the box no longer stops it at the coolant target
+    return f"Started a {minutes}-minute preheat. It shuts down when the time is up."
 
 
 def explain_thermostat_on(after: dict[str, Any]) -> str:
     """The thermostat was switched on: what it will do next, from the box's status straight afterwards."""
     room, start_at, top = _room(after), after.get("auto_start_at"), after.get("auto_high")
     thermo = _thermo(after)
-    rest = _minutes(thermo.get("min_off_left_s"))
+    rest = _rest(thermo.get("min_off_left_s"))
     state = after.get("state")
     if state in ACTIVE_STATES:
         return f"Thermostat on. The heater is running and stops when the room reaches {_deg(top)}."
@@ -76,7 +81,7 @@ def explain_thermostat_on(after: dict[str, Any]) -> str:
         if rest:
             return (
                 f"Thermostat on. The room is {_deg(room)}, at or below the {_deg(start_at)} start point, "
-                f"but the heater is resting for another {rest} min after its last run "
+                f"but the heater is resting for another {rest} after its last run "
                 f"(heaters like this last longer that way). Then it starts, and stops at {_deg(top)}."
             )
         return (
