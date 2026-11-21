@@ -84,6 +84,16 @@ def _non_empty(key: str) -> Callable[[HearthData], Any]:
     return lambda data: data.status.get(key) or None
 
 
+def _fault_held_name(data: HearthData) -> str | None:
+    """Firmware 1.80: the fault the box is holding until it is cleared, with how often it happened."""
+    held = data.status.get("fault_held")
+    if not isinstance(held, dict):
+        return None
+    name = held.get("name") or f"Fault {held.get('code')}"
+    count = held.get("count") or 1
+    return f"{name} ({count} times)" if count > 1 else name
+
+
 def _fault_name(data: HearthData) -> str | None:
     """The fault, "No fault" once the heater has said code 0, unknown until it has said anything."""
     if name := data.status.get("fault_name"):
@@ -258,6 +268,13 @@ SENSORS: tuple[HearthSensorDescription, ...] = (
         entity_category=EntityCategory.DIAGNOSTIC,
         empty_value="None",
         value_fn=_status("last_fault_name"),
+    ),
+    HearthSensorDescription(
+        key="fault_held_name",
+        translation_key="fault_held_name",
+        empty_value="None",
+        required_field="fault_held",
+        value_fn=_fault_held_name,
     ),
     HearthSensorDescription(
         key="next_timer",

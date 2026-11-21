@@ -18,6 +18,7 @@
       "prime_fuel": {"default": "mdi:fuel"},
       "fan_test": {"default": "mdi:fan"},
       "unlock_heater": {"default": "mdi:lock-open-variant-outline"},
+      "clear_fault": {"default": "mdi:alert-remove-outline"},
       "start_thermostat": {"default": "mdi:thermostat"},
       "stop": {"default": "mdi:stop-circle-outline"},
       "tank_filled": {"default": "mdi:fuel"}
@@ -51,6 +52,7 @@
       "elapsed_min": {"default": "mdi:timer-outline"},
       "fault_name": {"default": "mdi:alert-circle-outline"},
       "last_fault_name": {"default": "mdi:alert-circle-outline"},
+      "fault_held_name": {"default": "mdi:alert-circle"},
       "next_timer": {"default": "mdi:calendar-clock"},
       "run_ends": {"default": "mdi:timer-sand"},
       "prevent_freezing_note": {"default": "mdi:message-text-outline"},

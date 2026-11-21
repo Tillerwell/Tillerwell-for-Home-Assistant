@@ -228,6 +228,45 @@ async def test_heater_info_and_unlock(
     assert sent(aioclient_mock) == [{"cmd": "heater_read"}, {"cmd": "heater_unlock"}]
 
 
+async def test_fault_held(hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, entry: MockConfigEntry) -> None:
+    # firmware 1.80: the heater has dropped its code (a new start), the box still holds 78, seen twice
+    status = {
+        **STATUS,
+        "fault": 0,
+        "fault_name": None,
+        "fault_held": {
+            "code": 78,
+            "name": "Flame break during running",
+            "count": 2,
+            "first_at": 1763723351,
+            "last_at": 1763808114,
+        },
+    }
+    aioclient_mock.get(f"{BASE}/api/info", json=INFO)
+    aioclient_mock.get(f"{BASE}/api/status", json=status)
+    aioclient_mock.get(f"{BASE}/api/timers", json=[])
+    aioclient_mock.post(f"{BASE}/api/cmd", json={"ok": True})
+    await setup(hass, entry)
+    assert hass.states.get("binary_sensor.hearth_a1b2c3_fault_not_cleared").state == "on"
+    assert hass.states.get("sensor.hearth_a1b2c3_uncleared_fault").state == "Flame break during running (2 times)"
+    await hass.services.async_call(
+        BUTTON, SERVICE_PRESS, {ATTR_ENTITY_ID: "button.hearth_a1b2c3_clear_fault"}, blocking=True
+    )
+    assert sent(aioclient_mock) == [{"cmd": "fault_clear"}]
+
+
+async def test_fault_held_cleared_and_old_firmware(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, entry: MockConfigEntry
+) -> None:
+    # cleared: off and "None"; STATUS (older firmware) has no fault_held, so those are unknown / unavailable
+    aioclient_mock.get(f"{BASE}/api/info", json=INFO)
+    aioclient_mock.get(f"{BASE}/api/status", json={**STATUS, "fault_held": None})
+    aioclient_mock.get(f"{BASE}/api/timers", json=[])
+    await setup(hass, entry)
+    assert hass.states.get("binary_sensor.hearth_a1b2c3_fault_not_cleared").state == "off"
+    assert hass.states.get("sensor.hearth_a1b2c3_uncleared_fault").state == "None"
+
+
 async def test_service_and_heater_settings(
     hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, entry: MockConfigEntry
 ) -> None:

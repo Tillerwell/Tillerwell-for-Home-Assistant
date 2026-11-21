@@ -39,6 +39,14 @@ def _locked(status: dict[str, Any]) -> bool | None:
     return status.get("state_raw") == 1 and status.get("substate") == 1
 
 
+def _fault_held(status: dict[str, Any]) -> bool | None:
+    """Firmware 1.80: a fault the box is holding until someone clears it (the heater drops its own code at the next
+    start); unknown on older firmware, which has no fault_held at all."""
+    if "fault_held" not in status:
+        return None
+    return status["fault_held"] is not None
+
+
 def _thermo_flag(key: str) -> Callable[[dict[str, Any]], bool | None]:
     """A flag from the Heater Care object (firmware 1.47); unknown on older firmware."""
 
@@ -70,6 +78,12 @@ BINARY_SENSORS: tuple[HearthBinarySensorDescription, ...] = (
     ),
     HearthBinarySensorDescription(
         key="locked", translation_key="locked", device_class=BinarySensorDeviceClass.PROBLEM, value_fn=_locked
+    ),
+    HearthBinarySensorDescription(
+        key="fault_held",
+        translation_key="fault_held",
+        device_class=BinarySensorDeviceClass.PROBLEM,
+        value_fn=_fault_held,
     ),
     HearthBinarySensorDescription(
         key="burner_active", translation_key="burner_active", device_class=BinarySensorDeviceClass.HEAT

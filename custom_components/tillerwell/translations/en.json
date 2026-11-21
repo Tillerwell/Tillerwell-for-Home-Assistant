@@ -66,6 +66,7 @@
       "heater_care_no_reading": {"name": "No temperature reading"},
       "fault_active": {"name": "Fault"},
       "locked": {"name": "Heater locked"},
+      "fault_held": {"name": "Fault not cleared"},
       "burner_active": {"name": "Burner"},
       "heater_seen": {"name": "Heater link"},
       "controller_seen": {"name": "Controller link"},
@@ -85,6 +86,7 @@
       "prime_fuel": {"name": "Prime fuel"},
       "fan_test": {"name": "Fan test"},
       "unlock_heater": {"name": "Unlock heater"},
+      "clear_fault": {"name": "Clear fault"},
       "stop": {"name": "Stop"},
       "tank_filled": {"name": "Tank filled to the top"}
     },
@@ -137,6 +139,7 @@
       "elapsed_min": {"name": "Run time"},
       "fault_name": {"name": "Fault"},
       "last_fault_name": {"name": "Last fault"},
+      "fault_held_name": {"name": "Uncleared fault"},
       "next_timer": {"name": "Next timer"},
       "run_ends": {"name": "Run ends"},
       "timer_note": {"name": "Last timer event"},
