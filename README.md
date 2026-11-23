@@ -77,6 +77,7 @@ Hearth firmware 1.82 keeps every run (when it started and ended, its phases, fue
 - **Heater health** is `learning` for the first 10 runs at high, then `ok`, `watch` or `service`, with the reason as an attribute. Press **Heater serviced** after a service so it learns again.
 - **Last run finished** carries the whole last run as attributes; **Last run fuel** and **Last run cost** are its fuel and cost. **Time to light**, **Battery under glow plug** and **Flame at high** are from the last run with the heater's readings, for your own graphs and automations.
 - From firmware 1.84, **Heater health** also carries each part (burner, glow plug, fan, fan control, fuel pump, battery, coolant flow) as attributes, with its normal reading, what it reads now and its state. **Last service**, **Burning since service**, **Starts since service** and **Last ran** help you plan servicing; Autoterm asks for a 5 to 10 minute run every month, summer included.
+- From firmware 1.85, **Service items due** counts the items due (Autoterm's intervals: 500 hours or each heating season), with each item's state, when it was last done and its interval as attributes, and `season_prompt` when the heater has just run for the first time in two months. Record services in the Tillerwell app or on the website.
 - The full history, with each run's coloured timeline, is in the Tillerwell app and on the website.
 
 ## Battery use

@@ -146,6 +146,7 @@
       "heater_health": {"name": "Heater health", "state": {"learning": "Learning", "ok": "Healthy", "watch": "Worth a look", "service": "Service due"}},
       "last_run": {"name": "Last run finished"},
       "last_service": {"name": "Last service"},
+      "service_items_due": {"name": "Service items due"},
       "burn_hours_since_service": {"name": "Burning since service"},
       "starts_since_service": {"name": "Starts since service"},
       "last_ran": {"name": "Last ran"},

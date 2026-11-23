@@ -59,6 +59,7 @@
       "heater_health": {"default": "mdi:stethoscope", "state": {"watch": "mdi:alert", "service": "mdi:wrench-clock"}},
       "last_run": {"default": "mdi:history"},
       "last_service": {"default": "mdi:wrench-clock"},
+      "service_items_due": {"default": "mdi:clipboard-list-outline"},
       "burn_hours_since_service": {"default": "mdi:timer-cog-outline"},
       "starts_since_service": {"default": "mdi:counter"},
       "last_ran": {"default": "mdi:calendar-check"},

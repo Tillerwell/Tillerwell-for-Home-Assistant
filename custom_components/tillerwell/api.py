@@ -106,6 +106,11 @@ class HearthClient:
         data = await self._request("GET", "/api/health", allow_missing=True)
         return data if isinstance(data, dict) else None
 
+    async def get_service(self) -> dict[str, Any] | None:
+        """Servicing (Hearth 1.85), None on older firmware."""
+        data = await self._request("GET", "/api/service", allow_missing=True)
+        return data if isinstance(data, dict) else None
+
     async def get_status(self) -> dict[str, Any]:
         """The live status document."""
         data = await self._request("GET", "/api/status")

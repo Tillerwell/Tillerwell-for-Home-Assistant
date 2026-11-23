@@ -116,6 +116,12 @@ def _last_ran(data: HearthData) -> datetime | None:
     return datetime.fromtimestamp(at, tz=UTC) if isinstance(at, int | float) and at > 0 else None
 
 
+def _service_due(data: HearthData) -> Any:
+    """Hearth 1.85: how many service items are due (or probably due)."""
+    due = data.status.get("service_due")
+    return due.get("due") if isinstance(due, dict) else None
+
+
 def _health_state(data: HearthData) -> str | None:
     health = data.status.get("heater_health")
     return health.get("state") if isinstance(health, dict) else None
@@ -627,6 +633,13 @@ SENSORS: tuple[HearthSensorDescription, ...] = (
         value_fn=_health_state,
     ),
     HearthSensorDescription(
+        key="service_items_due",
+        translation_key="service_items_due",
+        state_class=SensorStateClass.MEASUREMENT,
+        required_field="service_due",
+        value_fn=_service_due,
+    ),
+    HearthSensorDescription(
         key="last_service",
         translation_key="last_service",
         device_class=SensorDeviceClass.TIMESTAMP,
@@ -845,6 +858,19 @@ class HearthSensor(HearthEntity, SensorEntity):
             for part in (self.coordinator.data.health or {}).get("parts") or []:
                 if isinstance(part, dict) and part.get("part"):
                     attrs[part["part"]] = {k: part.get(k) for k in ("state", "normal", "now", "unit")}
+            return attrs
+        if self.entity_description.key == "service_items_due":
+            # Hearth 1.85: each item, its state, when it was last done and its interval; the pre-season prompt
+            due = self.status.get("service_due")
+            attrs: dict[str, Any] = {"season_prompt": bool(due.get("season")) if isinstance(due, dict) else False}
+            if isinstance(due, dict):
+                attrs["coming_up"] = due.get("soon")
+            for item in (self.coordinator.data.service or {}).get("items") or []:
+                if isinstance(item, dict) and item.get("item"):
+                    attrs[item["item"]] = {
+                        k: item.get(k)
+                        for k in ("state", "last_action", "hours_since", "months_since", "hours", "months")
+                    }
             return attrs
         if self.entity_description.key == "last_run" and self.coordinator.data.last_run:
             run = dict(self.coordinator.data.last_run)
