@@ -120,7 +120,6 @@
     "switch": {
       "bypass_mode": {"default": "mdi:transit-connection-variant"},
       "debug_mode": {"default": "mdi:bug-outline"},
-      "ext_stream": {"default": "mdi:chart-line"},
       "heater": {"default": "mdi:radiator", "state": {"on": "mdi:radiator"}},
       "prevent_freezing": {"default": "mdi:snowflake-alert"},
       "pump_standby": {"default": "mdi:water-pump-off", "state": {"on": "mdi:water-pump"}},

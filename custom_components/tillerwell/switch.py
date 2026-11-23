@@ -99,15 +99,6 @@ SWITCHES: tuple[HearthSwitchDescription, ...] = (
         set_fn=_command("auto_once"),
         available_fn=_once_available,
     ),
-    # Firmware 1.82: the box keeps the heater's extended stream on (pump-counted fuel and the health check).
-    HearthSwitchDescription(
-        key="ext_stream",
-        translation_key="ext_stream",
-        entity_category=EntityCategory.CONFIG,
-        is_on_fn=_flag("ext_stream"),
-        set_fn=_command("ext_stream"),
-        available_fn=lambda status: "ext_stream" in status,
-    ),
     HearthSwitchDescription(
         key="use_external_temp",
         translation_key="use_external_temp",

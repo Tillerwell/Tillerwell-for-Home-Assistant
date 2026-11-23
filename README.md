@@ -64,7 +64,7 @@ The device takes the name you gave the box in the Tillerwell app, and follows it
 
 ## Fuel and cost
 
-From Hearth firmware 1.82 the box counts fuel from the heater's own fuel pump: it keeps the heater's detailed readings on (the **Detailed heater readings** switch) and multiplies the pump's strokes by the heater's spec figure for each stroke. Older firmware, or with the switch off, it estimates: time at each power level times a litres-per-hour rate (Autoterm Flow 5 spec-sheet figures by default) times the calibration factor. Either way it keeps the totals and a daily log itself, so nothing is lost while Home Assistant is off.
+From Hearth firmware 1.82 the box counts fuel from the heater's own fuel pump: it keeps the heater's detailed readings on all the time and multiplies the pump's strokes by the heater's spec figure for each stroke. Older firmware estimates: time at each power level times a litres-per-hour rate (Autoterm Flow 5 spec-sheet figures by default) times the calibration factor. Either way it keeps the totals and a daily log itself, so nothing is lost while Home Assistant is off.
 
 - **Fuel used (estimated)** is a total that only goes up, in litres, so Home Assistant keeps long-term statistics for it: use it in a statistics graph or a utility meter for weekly or monthly figures.
 - Set **Fuel price** to what you pay per litre. The box adds up the cost as it goes, so a new price applies from then on and past costs stay as they were.

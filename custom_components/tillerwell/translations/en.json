@@ -226,8 +226,7 @@
       "use_external_temp": {"name": "Use external temperature"},
       "bypass_mode": {"name": "Bypass"},
       "pump_standby": {"name": "Heater water pump in standby"},
-      "debug_mode": {"name": "Extended telemetry probing"},
-      "ext_stream": {"name": "Detailed heater readings"}
+      "debug_mode": {"name": "Extended telemetry probing"}
     }
   },
   "services": {
