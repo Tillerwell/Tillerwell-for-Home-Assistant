@@ -234,9 +234,40 @@ def _iso(epoch: Any) -> str | None:
 
 
 def _heater_faults(data: HearthData) -> list[dict[str, Any]]:
-    report = _heater_info(data).get("report")
+    """The heater's own fault history, with the faults the box saw that it doesn't have, newest first.
+
+    Firmware 1.91: some codes never go in the heater's memory (29, its lockout after repeated flame breaks), so the
+    box lists the ones it saw as heater_info.faults_seen. Each goes in front of the first heater entry that is older
+    or has no date, marked seen_by_hearth; one with no date goes last. The heater's own order is never changed.
+    """
+    info = _heater_info(data)
+    report = info.get("report")
     faults = report.get("faults") if isinstance(report, dict) else None
-    return faults if isinstance(faults, list) else []
+    out: list[dict[str, Any]] = [f for f in faults if isinstance(f, dict)] if isinstance(faults, list) else []
+    seen = info.get("faults_seen")
+    undated: list[dict[str, Any]] = []
+    for f in seen if isinstance(seen, list) else []:
+        if not isinstance(f, dict):
+            continue
+        f = {**f, "seen_by_hearth": True}
+        at = f.get("seen_at")
+        if not isinstance(at, (int, float)) or at <= 0:
+            undated.append(f)
+            continue
+        i = next(
+            (
+                n
+                for n, g in enumerate(out)
+                if (
+                    g["seen_at"] < at
+                    if isinstance(g.get("seen_at"), (int, float)) and g["seen_at"] > 0
+                    else not g.get("seen_by_hearth")
+                )
+            ),
+            len(out),
+        )
+        out.insert(i, f)
+    return out + undated
 
 
 def _last_heater_fault(data: HearthData) -> str | None:

@@ -300,6 +300,23 @@ async def test_service_and_heater_settings(
     assert last.attributes["faults"][0]["seen"] == "2025-11-15T18:00:00+00:00"
     assert "seen" not in last.attributes["faults"][1]
     assert last.attributes["read_at"] == "2025-11-15T18:00:00+00:00"
+    # firmware 1.91: the box saw the heater show 29 (its lockout, never written to its memory): listed first, by date
+    status["heater_info"]["faults_seen"] = [
+        {"code": 29, "name": "Flame breaks too often", "seen_at": 1763229700, "ended_at": 1763230000},
+        {"code": 20, "name": "No connection", "seen_at": None},
+    ]
+    aioclient_mock.clear_requests()
+    aioclient_mock.get(f"{BASE}/api/info", json=INFO)
+    aioclient_mock.get(f"{BASE}/api/status", json=status)
+    aioclient_mock.get(f"{BASE}/api/timers", json=[])
+    aioclient_mock.post(f"{BASE}/api/cmd", json={"ok": True})
+    await entry.runtime_data.async_refresh()
+    await hass.async_block_till_done()
+    last = hass.states.get("sensor.hearth_a1b2c3_heater_s_last_recorded_fault")
+    assert last.state == "Flame breaks too often"
+    assert [f["code"] for f in last.attributes["faults"]] == [29, 13, 78, 20]
+    assert last.attributes["faults"][0]["seen_by_hearth"] is True
+    assert "seen_by_hearth" not in last.attributes["faults"][1]
     for button in ("prime_fuel", "fan_test", "stop"):
         await hass.services.async_call(
             BUTTON, SERVICE_PRESS, {ATTR_ENTITY_ID: f"button.hearth_a1b2c3_{button}"}, blocking=True
