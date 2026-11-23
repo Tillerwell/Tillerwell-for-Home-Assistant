@@ -101,6 +101,21 @@ def _last_run_end(data: HearthData) -> datetime | None:
     return datetime.fromtimestamp(start + run.get("duration_s", 0), tz=UTC) if start else None
 
 
+def _since(key: str) -> Callable[[HearthData], Any]:
+    """Hearth 1.84: use since the last service (or since set-up, with none recorded)."""
+    return lambda data: ((data.health or {}).get("since_service") or {}).get(key)
+
+
+def _last_service(data: HearthData) -> datetime | None:
+    at = ((data.health or {}).get("since_service") or {}).get("at")
+    return datetime.fromtimestamp(at, tz=UTC) if isinstance(at, int | float) and at > 0 else None
+
+
+def _last_ran(data: HearthData) -> datetime | None:
+    at = (data.health or {}).get("last_run_at")
+    return datetime.fromtimestamp(at, tz=UTC) if isinstance(at, int | float) and at > 0 else None
+
+
 def _health_state(data: HearthData) -> str | None:
     health = data.status.get("heater_health")
     return health.get("state") if isinstance(health, dict) else None
@@ -612,6 +627,35 @@ SENSORS: tuple[HearthSensorDescription, ...] = (
         value_fn=_health_state,
     ),
     HearthSensorDescription(
+        key="last_service",
+        translation_key="last_service",
+        device_class=SensorDeviceClass.TIMESTAMP,
+        run="service",
+        value_fn=_last_service,
+    ),
+    HearthSensorDescription(
+        key="burn_hours_since_service",
+        translation_key="burn_hours_since_service",
+        device_class=SensorDeviceClass.DURATION,
+        native_unit_of_measurement=UnitOfTime.HOURS,
+        suggested_display_precision=1,
+        run="service",
+        value_fn=_since("burn_hours"),
+    ),
+    HearthSensorDescription(
+        key="starts_since_service",
+        translation_key="starts_since_service",
+        run="service",
+        value_fn=_since("starts"),
+    ),
+    HearthSensorDescription(
+        key="last_ran",
+        translation_key="last_ran",
+        device_class=SensorDeviceClass.TIMESTAMP,
+        run="service",
+        value_fn=_last_ran,
+    ),
+    HearthSensorDescription(
         key="last_run",
         translation_key="last_run",
         device_class=SensorDeviceClass.TIMESTAMP,
@@ -785,6 +829,8 @@ class HearthSensor(HearthEntity, SensorEntity):
             return False
         if self.entity_description.run == "health" and not self.coordinator.data.last_health_run:
             return False
+        if self.entity_description.run == "service" and not self.coordinator.data.health:
+            return False
         return not self.entity_description.extended or bool(self.status.get("extended_active"))
 
     @property
@@ -792,7 +838,14 @@ class HearthSensor(HearthEntity, SensorEntity):
         """The heater's fault history, newest first, on its last-fault sensor."""
         if self.entity_description.key == "heater_health":
             health = self.status.get("heater_health")
-            return {k: health.get(k) for k in ("reason", "runs", "learned")} if isinstance(health, dict) else None
+            if not isinstance(health, dict):
+                return None
+            attrs = {k: health.get(k) for k in ("reason", "runs", "learned")}
+            # Hearth 1.84: each part, its normal reading against now and its state
+            for part in (self.coordinator.data.health or {}).get("parts") or []:
+                if isinstance(part, dict) and part.get("part"):
+                    attrs[part["part"]] = {k: part.get(k) for k in ("state", "normal", "now", "unit")}
+            return attrs
         if self.entity_description.key == "last_run" and self.coordinator.data.last_run:
             run = dict(self.coordinator.data.last_run)
             run["start"] = _iso(run.get("start"))

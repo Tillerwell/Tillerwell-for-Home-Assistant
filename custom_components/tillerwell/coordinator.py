@@ -87,6 +87,8 @@ class HearthData:
     # Hearth 1.82: the newest run, and the newest with the heater's own readings (run history), as parse_run gives them.
     last_run: dict[str, Any] | None = None
     last_health_run: dict[str, Any] | None = None
+    # Hearth 1.84: GET /api/health (each part, use since the last service, when it last ran).
+    health: dict[str, Any] | None = None
 
 
 def parse_run(row: Any) -> dict[str, Any] | None:
@@ -160,6 +162,7 @@ class HearthCoordinator(DataUpdateCoordinator[HearthData]):
         self._runs_at = 0.0
         self._last_run: dict[str, Any] | None = None
         self._last_health_run: dict[str, Any] | None = None
+        self._health: dict[str, Any] | None = None
         self._clock_try_at = 0.0
         self._ext_sent_at = 0.0
         self._ext_sent_value: float | None = None
@@ -221,6 +224,7 @@ class HearthCoordinator(DataUpdateCoordinator[HearthData]):
             fuel_day=self._fuel_day,
             last_run=self._last_run,
             last_health_run=self._last_health_run,
+            health=self._health,
         )
 
     async def _refresh_info(self, now: float) -> None:
@@ -290,6 +294,10 @@ class HearthCoordinator(DataUpdateCoordinator[HearthData]):
         runs = [r for r in (parse_run(row) for row in (page or {}).get("runs") or []) if r]
         self._last_run = runs[0] if runs else None
         self._last_health_run = next((r for r in runs if r["health"]), self._last_health_run)
+        try:
+            self._health = await self.client.get_health()
+        except HearthError as err:
+            _LOGGER.debug("Could not read heater health: %s", err)
 
     async def _refresh_fuel_day(self, now: float) -> None:
         self._fuel_day_at = now
