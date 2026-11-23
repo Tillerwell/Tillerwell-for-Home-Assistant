@@ -54,6 +54,8 @@
       "fault_name": {"default": "mdi:alert-circle-outline"},
       "last_fault_name": {"default": "mdi:alert-circle-outline"},
       "fault_held_name": {"default": "mdi:alert-circle"},
+      "ext_fan_target": {"default": "mdi:fan-auto"},
+      "ext_fan_speed": {"default": "mdi:fan"},
       "heater_health": {"default": "mdi:stethoscope", "state": {"watch": "mdi:alert", "service": "mdi:wrench-clock"}},
       "last_run": {"default": "mdi:history"},
       "last_run_fuel": {"default": "mdi:fuel"},

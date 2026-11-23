@@ -587,6 +587,21 @@ SENSORS: tuple[HearthSensorDescription, ...] = (
         extended=True,
         value_fn=_status("ext_fuel_pump_hz"),
     ),
+    # The fan's target and measured speed (raw units): a growing gap means a worn fan or blocked air.
+    HearthSensorDescription(
+        key="ext_fan_target",
+        translation_key="ext_fan_target",
+        state_class=SensorStateClass.MEASUREMENT,
+        extended=True,
+        value_fn=_status("ext_defined_rev"),
+    ),
+    HearthSensorDescription(
+        key="ext_fan_speed",
+        translation_key="ext_fan_speed",
+        state_class=SensorStateClass.MEASUREMENT,
+        extended=True,
+        value_fn=_status("ext_measured_rev"),
+    ),
     # Firmware 1.82: the health check's verdict, and the last run from the run history.
     HearthSensorDescription(
         key="heater_health",

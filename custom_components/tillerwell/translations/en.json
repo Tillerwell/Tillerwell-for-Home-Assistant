@@ -141,6 +141,8 @@
       "fault_name": {"name": "Fault"},
       "last_fault_name": {"name": "Last fault"},
       "fault_held_name": {"name": "Uncleared fault"},
+      "ext_fan_target": {"name": "Fan target speed"},
+      "ext_fan_speed": {"name": "Fan speed"},
       "heater_health": {"name": "Heater health", "state": {"learning": "Learning", "ok": "Healthy", "watch": "Worth a look", "service": "Service due"}},
       "last_run": {"name": "Last run finished"},
       "last_run_fuel": {"name": "Last run fuel"},
