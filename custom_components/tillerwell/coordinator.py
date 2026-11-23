@@ -34,6 +34,7 @@ from .const import (
     INFO_INTERVAL,
     MANUFACTURER,
     MODEL,
+    MODEL_DIAL,
     REDISCOVER_INTERVAL,
     RUN_ENDS,
     RUN_MODE_FIRMWARE,
@@ -184,7 +185,7 @@ class HearthCoordinator(DataUpdateCoordinator[HearthData]):
             identifiers={self._device_id},
             name=box_name(self._info) if self._info else self.config_entry.title,
             manufacturer=MANUFACTURER,
-            model=MODEL,
+            model=MODEL_DIAL if self._info and self._info.get("dial") else MODEL,
             sw_version=self._info.get("version"),
             configuration_url=self.client.host_url,
         )

@@ -9,7 +9,10 @@ DOMAIN = "tillerwell"
 CONF_EXTERNAL_TEMP_ENTITY = "external_temperature_entity"
 
 MANUFACTURER = "Tillerwell"
-MODEL = "Hearth"
+# Product names (2026-11-23): the add-on box and the replacement controller.
+# /api/info "dial" (firmware 1.88+) tells them apart.
+MODEL = "Hearth Link"
+MODEL_DIAL = "Hearth Dial"
 
 # The box serves plain HTTP on port 80 and is cheap to poll (the iOS app polls every 2 s).
 SCAN_INTERVAL = timedelta(seconds=5)

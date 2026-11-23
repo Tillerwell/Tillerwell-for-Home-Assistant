@@ -865,6 +865,10 @@ class HearthSensor(HearthEntity, SensorEntity):
             attrs: dict[str, Any] = {"season_prompt": bool(due.get("season")) if isinstance(due, dict) else False}
             if isinstance(due, dict):
                 attrs["coming_up"] = due.get("soon")
+                # Hearth 1.89: "Remind me later" from the apps or website hides the reminder until then
+                snz = due.get("snoozed_until")
+                snoozed = isinstance(snz, int | float) and snz > 0
+                attrs["reminder_snoozed_until"] = datetime.fromtimestamp(snz, tz=UTC).isoformat() if snoozed else None
             for item in (self.coordinator.data.service or {}).get("items") or []:
                 if isinstance(item, dict) and item.get("item"):
                     attrs[item["item"]] = {
