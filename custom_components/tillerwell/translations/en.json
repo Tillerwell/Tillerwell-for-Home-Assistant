@@ -87,6 +87,7 @@
       "fan_test": {"name": "Fan test"},
       "unlock_heater": {"name": "Unlock heater"},
       "clear_fault": {"name": "Clear fault"},
+      "heater_serviced": {"name": "Heater serviced"},
       "stop": {"name": "Stop"},
       "tank_filled": {"name": "Tank filled to the top"}
     },
@@ -140,6 +141,13 @@
       "fault_name": {"name": "Fault"},
       "last_fault_name": {"name": "Last fault"},
       "fault_held_name": {"name": "Uncleared fault"},
+      "heater_health": {"name": "Heater health", "state": {"learning": "Learning", "ok": "Healthy", "watch": "Worth a look", "service": "Service due"}},
+      "last_run": {"name": "Last run finished"},
+      "last_run_fuel": {"name": "Last run fuel"},
+      "last_run_cost": {"name": "Last run cost"},
+      "ignition_time": {"name": "Time to light"},
+      "glow_voltage": {"name": "Battery under glow plug"},
+      "flame_at_high": {"name": "Flame at high"},
       "next_timer": {"name": "Next timer"},
       "run_ends": {"name": "Run ends"},
       "timer_note": {"name": "Last timer event"},
@@ -211,7 +219,8 @@
       "use_external_temp": {"name": "Use external temperature"},
       "bypass_mode": {"name": "Bypass"},
       "pump_standby": {"name": "Heater water pump in standby"},
-      "debug_mode": {"name": "Extended telemetry probing"}
+      "debug_mode": {"name": "Extended telemetry probing"},
+      "ext_stream": {"name": "Detailed heater readings"}
     }
   },
   "services": {

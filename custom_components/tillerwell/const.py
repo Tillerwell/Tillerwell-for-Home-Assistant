@@ -19,6 +19,23 @@ TIMERS_INTERVAL = timedelta(minutes=1)
 # Today's fuel by power level (GET /api/fuel/day, Hearth 1.64): the box counts it by the minute.
 FUEL_DAY_INTERVAL = timedelta(minutes=5)
 FUEL_DAY_FIRMWARE = 10064  # RoamOS 1.0064 as a number
+# Run history and heater health (GET /api/runs, Hearth 1.82): the newest runs, read every two minutes.
+RUNS_INTERVAL = timedelta(minutes=2)
+RUNS_FIRMWARE = 10082
+RUN_PHASES = ("starting", "low", "middle", "high", "cooling", "pump", "other")
+RUN_SOURCES = ("unknown", "controller", "auto", "timer", "frost", "preheat")
+RUN_ENDS = (
+    "none",
+    "top",
+    "user",
+    "external",
+    "ceiling",
+    "fault",
+    "no_reading",
+    "heater",
+    "timer_ended",
+    "thermostat_off",
+)
 # Switching a running heater between preheat and thermostat with no stop (`run_mode`, Hearth 1.68)
 RUN_MODE_FIRMWARE = 10068
 PRESET_PREHEAT = "preheat"

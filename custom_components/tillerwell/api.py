@@ -96,6 +96,11 @@ class HearthClient:
         data = await self._request("GET", f"/api/fuel/day?date={date}", allow_missing=True)
         return data if isinstance(data, dict) else None
 
+    async def get_runs(self, limit: int = 10) -> dict[str, Any] | None:
+        """The newest runs (Hearth 1.82), None on older firmware."""
+        data = await self._request("GET", f"/api/runs?limit={limit}", allow_missing=True)
+        return data if isinstance(data, dict) else None
+
     async def get_status(self) -> dict[str, Any]:
         """The live status document."""
         data = await self._request("GET", "/api/status")

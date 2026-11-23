@@ -78,6 +78,11 @@ async def _unlock_heater(coordinator: HearthCoordinator) -> None:
     await coordinator.async_command("heater_unlock")
 
 
+async def _health_reset(coordinator: HearthCoordinator) -> None:
+    """Firmware 1.82: after a service, the health check learns what is normal for the heater again."""
+    await coordinator.async_command("health_reset")
+
+
 async def _clear_fault(coordinator: HearthCoordinator) -> None:
     """Firmware 1.80: forget the box's held fault, once its cause is fixed."""
     await coordinator.async_command("fault_clear")
@@ -123,6 +128,12 @@ BUTTONS: tuple[HearthButtonDescription, ...] = (
     ),
     # Firmware 1.80: the box keeps the newest fault after the heater forgets its code at the next start; this clears it.
     HearthButtonDescription(key="clear_fault", translation_key="clear_fault", press_fn=_clear_fault),
+    HearthButtonDescription(
+        key="heater_serviced",
+        translation_key="heater_serviced",
+        entity_category=EntityCategory.CONFIG,
+        press_fn=_health_reset,
+    ),
     HearthButtonDescription(
         key="heater_care_reset",
         translation_key="heater_care_reset",

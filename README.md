@@ -64,11 +64,19 @@ The device takes the name you gave the box in the Tillerwell app, and follows it
 
 ## Fuel and cost
 
-The heater doesn't report its fuel pump to the box, so the box estimates fuel: time at each power level times a litres-per-hour rate (Autoterm Flow 5 spec-sheet figures by default) times the calibration factor. It keeps the totals and a daily log itself, so nothing is lost while Home Assistant is off.
+From Hearth firmware 1.82 the box counts fuel from the heater's own fuel pump: it keeps the heater's detailed readings on (the **Detailed heater readings** switch) and multiplies the pump's strokes by the heater's spec figure for each stroke. Older firmware, or with the switch off, it estimates: time at each power level times a litres-per-hour rate (Autoterm Flow 5 spec-sheet figures by default) times the calibration factor. Either way it keeps the totals and a daily log itself, so nothing is lost while Home Assistant is off.
 
 - **Fuel used (estimated)** is a total that only goes up, in litres, so Home Assistant keeps long-term statistics for it: use it in a statistics graph or a utility meter for weekly or monthly figures.
 - Set **Fuel price** to what you pay per litre. The box adds up the cost as it goes, so a new price applies from then on and past costs stay as they were.
 - To calibrate, fill the tank to the top, note **Fuel used**, run the heater for a few days, fill up again and divide the litres that went in by the change in **Fuel used**. Multiply **Fuel calibration factor** by that. The Tillerwell app does the sum for you.
+
+## Run history and heater health
+
+Hearth firmware 1.82 keeps every run (when it started and ended, its phases, fuel, cost, who started it and why it stopped) and checks the heater's health against what was normal for it when it was new: the flame at high power, how long it takes to light, the fan, and the battery while the glow plug heats.
+
+- **Heater health** is `learning` for the first 10 runs at high, then `ok`, `watch` or `service`, with the reason as an attribute. Press **Heater serviced** after a service so it learns again.
+- **Last run finished** carries the whole last run as attributes; **Last run fuel** and **Last run cost** are its fuel and cost. **Time to light**, **Battery under glow plug** and **Flame at high** are from the last run with the heater's readings, for your own graphs and automations.
+- The full history, with each run's coloured timeline, is in the Tillerwell app and on the website.
 
 ## Battery use
 

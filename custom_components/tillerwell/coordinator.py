@@ -35,7 +35,12 @@ from .const import (
     MANUFACTURER,
     MODEL,
     REDISCOVER_INTERVAL,
+    RUN_ENDS,
     RUN_MODE_FIRMWARE,
+    RUN_PHASES,
+    RUN_SOURCES,
+    RUNS_FIRMWARE,
+    RUNS_INTERVAL,
     SCAN_INTERVAL,
     SOURCE,
     TIMERS_INTERVAL,
@@ -79,6 +84,57 @@ class HearthData:
     timers: list[dict[str, Any]]
     # Today's fuel by power level (Hearth 1.64), None on older firmware or until the box has one.
     fuel_day: dict[str, Any] | None = None
+    # Hearth 1.82: the newest run, and the newest with the heater's own readings (run history), as parse_run gives them.
+    last_run: dict[str, Any] | None = None
+    last_health_run: dict[str, Any] | None = None
+
+
+def parse_run(row: Any) -> dict[str, Any] | None:
+    """One run row of GET /api/runs (Hearth 1.82, spec §9.15) as named values, None if it is not one."""
+    if not isinstance(row, list) or len(row) < 24 or not isinstance(row[23], str):
+        return None
+    v = row[:23]
+    if any(x is not None and not isinstance(x, int | float) for x in v):
+        return None
+    flags = int(v[7] or 0)
+    phases: dict[str, int] = {}
+    segs = []
+    for part in row[23].split(","):
+        p, _, t = part.partition(":")
+        if p.isdigit() and t.isdigit() and 1 <= int(p) <= len(RUN_PHASES):
+            segs.append((RUN_PHASES[int(p) - 1], int(t)))
+    dur = int(v[1] or 0)
+    for i, (phase, at) in enumerate(segs):
+        end = segs[i + 1][1] if i + 1 < len(segs) else dur
+        if end > at:
+            phases[phase] = phases.get(phase, 0) + end - at
+
+    def tenth(x: Any) -> float | None:
+        return None if x is None else round(x / 10, 1)
+
+    def pos(x: Any) -> Any:
+        return x if x else None
+
+    return {
+        "start": int(v[0]) if flags & 4 and v[0] else None,
+        "duration_s": dur,
+        "litres": round((v[2] or 0) / 10000, 3),
+        "cost": round((v[3] or 0) / 1000, 3),
+        "started_by": RUN_SOURCES[int(v[4] or 0)] if int(v[4] or 0) < len(RUN_SOURCES) else "unknown",
+        "ended": RUN_ENDS[int(v[5] or 0)] if int(v[5] or 0) < len(RUN_ENDS) else "none",
+        "fault": int(v[6] or 0),
+        "fuel_from_pump": bool(flags & 1),
+        "health": bool(flags & 2),
+        "room_start": tenth(v[8]),
+        "room_end": tenth(v[9]),
+        "flame_high": v[10],
+        "flame_peak": v[11],
+        "ignite_s": pos(v[12]),
+        "fan_gap": round((v[13] or 0) / 10, 1),
+        "volts_rest": tenth(pos(v[15])),
+        "volts_glow": tenth(pos(v[16])),
+        "phases_min": {k: round(s / 60, 1) for k, s in phases.items()},
+    }
 
 
 class HearthCoordinator(DataUpdateCoordinator[HearthData]):
@@ -101,6 +157,9 @@ class HearthCoordinator(DataUpdateCoordinator[HearthData]):
         self._timers_at = 0.0
         self._fuel_day: dict[str, Any] | None = None
         self._fuel_day_at = 0.0
+        self._runs_at = 0.0
+        self._last_run: dict[str, Any] | None = None
+        self._last_health_run: dict[str, Any] | None = None
         self._clock_try_at = 0.0
         self._ext_sent_at = 0.0
         self._ext_sent_value: float | None = None
@@ -148,12 +207,21 @@ class HearthCoordinator(DataUpdateCoordinator[HearthData]):
             await self._refresh_timers(now)
         if not self._fuel_day_at or now - self._fuel_day_at >= FUEL_DAY_INTERVAL.total_seconds():
             await self._refresh_fuel_day(now)
+        if not self._runs_at or now - self._runs_at >= RUNS_INTERVAL.total_seconds():
+            await self._refresh_runs(now)
 
         # Best effort: neither may fail the update.
         await self._sync_clock(status, now)
         await self._push_external_temperature(now)
 
-        return HearthData(status=status, info=self._info, timers=self._timers, fuel_day=self._fuel_day)
+        return HearthData(
+            status=status,
+            info=self._info,
+            timers=self._timers,
+            fuel_day=self._fuel_day,
+            last_run=self._last_run,
+            last_health_run=self._last_health_run,
+        )
 
     async def _refresh_info(self, now: float) -> None:
         try:
@@ -208,6 +276,20 @@ class HearthCoordinator(DataUpdateCoordinator[HearthData]):
         device = registry.async_get_device_by_identifier(self._device_id, entry.entry_id)
         if device and device.name != name:
             registry.async_update_device(device.id, name=name)
+
+    async def _refresh_runs(self, now: float) -> None:
+        self._runs_at = now
+        if (roamos_number(self._info.get("version")) or 0) < RUNS_FIRMWARE:
+            self._last_run = self._last_health_run = None
+            return
+        try:
+            page = await self.client.get_runs(10)
+        except HearthError as err:
+            _LOGGER.debug("Could not read the run history: %s", err)
+            return
+        runs = [r for r in (parse_run(row) for row in (page or {}).get("runs") or []) if r]
+        self._last_run = runs[0] if runs else None
+        self._last_health_run = next((r for r in runs if r["health"]), self._last_health_run)
 
     async def _refresh_fuel_day(self, now: float) -> None:
         self._fuel_day_at = now

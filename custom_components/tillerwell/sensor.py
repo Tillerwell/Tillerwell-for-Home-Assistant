@@ -54,6 +54,8 @@ class HearthSensorDescription(SensorEntityDescription):
     info_section: str | None = None
     # Today's fuel by power level (firmware 1.64): unavailable until the box has sent one.
     fuel_day: bool = False
+    # Run history (firmware 1.82): "last" needs a run, "health" a run with the heater's own readings.
+    run: str | None = None
 
 
 def _fuel_level(level: str, field: str) -> Callable[[HearthData], Any]:
@@ -82,6 +84,26 @@ def _status(key: str) -> Callable[[HearthData], Any]:
 
 def _non_empty(key: str) -> Callable[[HearthData], Any]:
     return lambda data: data.status.get(key) or None
+
+
+def _last_run(key: str) -> Callable[[HearthData], Any]:
+    return lambda data: (data.last_run or {}).get(key)
+
+
+def _health_run(key: str) -> Callable[[HearthData], Any]:
+    return lambda data: (data.last_health_run or {}).get(key)
+
+
+def _last_run_end(data: HearthData) -> datetime | None:
+    """Hearth 1.82: when the last run finished (its start plus its length)."""
+    run = data.last_run or {}
+    start = run.get("start")
+    return datetime.fromtimestamp(start + run.get("duration_s", 0), tz=UTC) if start else None
+
+
+def _health_state(data: HearthData) -> str | None:
+    health = data.status.get("heater_health")
+    return health.get("state") if isinstance(health, dict) else None
 
 
 def _fault_held_name(data: HearthData) -> str | None:
@@ -550,12 +572,11 @@ SENSORS: tuple[HearthSensorDescription, ...] = (
         suggested_display_precision=1,
         value_fn=_supply_voltage,
     ),
-    # Extended telemetry: only filled while "Extended telemetry probing" is on and the heater answers (experimental).
-    _temperature("ext_flame_temp", field="ext_flame_temp_c", extended=True, entity_registry_enabled_default=False),
-    _temperature("ext_liquid_temp", field="ext_liquid_temp_c", extended=True, entity_registry_enabled_default=False),
-    _temperature(
-        "ext_overheat_temp", field="ext_overheat_temp_c", extended=True, entity_registry_enabled_default=False
-    ),
+    # Extended telemetry: filled while the heater sends it. From firmware 1.82 the box keeps it on by itself (its
+    # "Detailed heater readings" switch), so the main readings are on by default.
+    _temperature("ext_flame_temp", field="ext_flame_temp_c", extended=True),
+    _temperature("ext_liquid_temp", field="ext_liquid_temp_c", extended=True),
+    _temperature("ext_overheat_temp", field="ext_overheat_temp_c", extended=True),
     _temperature("ext_board_temp", field="ext_board_temp_c", extended=True, entity_registry_enabled_default=False),
     HearthSensorDescription(
         key="ext_fuel_pump_hz",
@@ -564,8 +585,69 @@ SENSORS: tuple[HearthSensorDescription, ...] = (
         native_unit_of_measurement=UnitOfFrequency.HERTZ,
         state_class=SensorStateClass.MEASUREMENT,
         extended=True,
-        entity_registry_enabled_default=False,
         value_fn=_status("ext_fuel_pump_hz"),
+    ),
+    # Firmware 1.82: the health check's verdict, and the last run from the run history.
+    HearthSensorDescription(
+        key="heater_health",
+        translation_key="heater_health",
+        device_class=SensorDeviceClass.ENUM,
+        options=["learning", "ok", "watch", "service"],
+        required_field="heater_health",
+        value_fn=_health_state,
+    ),
+    HearthSensorDescription(
+        key="last_run",
+        translation_key="last_run",
+        device_class=SensorDeviceClass.TIMESTAMP,
+        run="last",
+        value_fn=_last_run_end,
+    ),
+    HearthSensorDescription(
+        key="last_run_fuel",
+        translation_key="last_run_fuel",
+        device_class=SensorDeviceClass.VOLUME,
+        native_unit_of_measurement=UnitOfVolume.LITERS,
+        suggested_display_precision=2,
+        run="last",
+        value_fn=_last_run("litres"),
+    ),
+    HearthSensorDescription(
+        key="last_run_cost",
+        translation_key="last_run_cost",
+        device_class=SensorDeviceClass.MONETARY,
+        currency=True,
+        suggested_display_precision=2,
+        run="last",
+        value_fn=_last_run("cost"),
+    ),
+    HearthSensorDescription(
+        key="ignition_time",
+        translation_key="ignition_time",
+        device_class=SensorDeviceClass.DURATION,
+        native_unit_of_measurement=UnitOfTime.SECONDS,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        run="health",
+        value_fn=_health_run("ignite_s"),
+    ),
+    HearthSensorDescription(
+        key="glow_voltage",
+        translation_key="glow_voltage",
+        device_class=SensorDeviceClass.VOLTAGE,
+        native_unit_of_measurement=UnitOfElectricPotential.VOLT,
+        suggested_display_precision=1,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        run="health",
+        value_fn=_health_run("volts_glow"),
+    ),
+    HearthSensorDescription(
+        key="flame_at_high",
+        translation_key="flame_at_high",
+        device_class=SensorDeviceClass.TEMPERATURE,
+        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        run="health",
+        value_fn=_health_run("flame_high"),
     ),
     HearthSensorDescription(
         key="ext_output_pct",
@@ -684,11 +766,22 @@ class HearthSensor(HearthEntity, SensorEntity):
             return False
         if self.entity_description.fuel_day and not self.coordinator.data.fuel_day:
             return False
+        if self.entity_description.run == "last" and not self.coordinator.data.last_run:
+            return False
+        if self.entity_description.run == "health" and not self.coordinator.data.last_health_run:
+            return False
         return not self.entity_description.extended or bool(self.status.get("extended_active"))
 
     @property
     def extra_state_attributes(self) -> dict[str, Any] | None:
         """The heater's fault history, newest first, on its last-fault sensor."""
+        if self.entity_description.key == "heater_health":
+            health = self.status.get("heater_health")
+            return {k: health.get(k) for k in ("reason", "runs", "learned")} if isinstance(health, dict) else None
+        if self.entity_description.key == "last_run" and self.coordinator.data.last_run:
+            run = dict(self.coordinator.data.last_run)
+            run["start"] = _iso(run.get("start"))
+            return run
         if self.entity_description.key == "heater_last_fault":
             # firmware 1.70: each fault's seen_at (epoch) is when the box first read it, as the heater keeps no
             # dates; "seen" gives it as a date and time, and read_at is when the heater was last read
