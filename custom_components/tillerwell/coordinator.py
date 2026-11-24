@@ -447,14 +447,15 @@ class HearthCoordinator(DataUpdateCoordinator[HearthData]):
         _LOGGER.debug("%s %s: %s", action, result, reason)
         self.async_update_listeners()
 
-    async def async_stop(self) -> bool:
+    async def async_stop(self, always: bool = False) -> bool:
         """Stop the heater. Auto must be switched off first or the box starts it again.
 
         Heater Care (firmware 1.61) does not let Home Assistant stop a run inside its minimum run. Thermostat off is
         still accepted: Auto goes off and the box stops the run once its minimum run is up, so that is not an error.
         Any other stop the box refuses (a preheat) raises, with the box's reason. Only the Tillerwell app can override.
         A heater already cooling down (or idle) gets no stop: once Auto is off there is nothing left to stop, and a
-        refused stop must not turn a thermostat off that worked into an error.
+        refused stop must not turn a thermostat off that worked into an error. `always` (the Stop button) sends the
+        stop in any state, since the heater still reads idle while it primes or tests its fan.
         Returns True when the box is letting the run finish its minimum run before it stops.
         """
         status = self.data.status if self.data else {}
@@ -465,7 +466,7 @@ class HearthCoordinator(DataUpdateCoordinator[HearthData]):
                 await self.async_command("auto", enabled=False, source=SOURCE)
             else:
                 await self.async_command("auto", enabled=False)
-        if status.get("state") in ACTIVE_STATES:
+        if always or status.get("state") in ACTIVE_STATES:
             if not care:
                 await self.async_command("stop")
                 return False

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from typing import Any
 
 from homeassistant.components.sensor import (
@@ -26,8 +26,9 @@ from homeassistant.const import (
     UnitOfVolume,
     UnitOfVolumeFlowRate,
 )
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
+from homeassistant.util import dt as dt_util
 
 from .const import FUEL_LEVELS, POWER_LEVELS, STATES
 from .coordinator import HearthConfigEntry, HearthCoordinator, HearthData
@@ -56,6 +57,9 @@ class HearthSensorDescription(SensorEntityDescription):
     fuel_day: bool = False
     # Run history (firmware 1.82): "last" needs a run, "health" a run with the heater's own readings.
     run: str | None = None
+    # A "total" that goes back to zero each day: last_reset tells Home Assistant's long-term statistics so, or the
+    # drop at midnight would be taken off the sum.
+    daily: bool = False
 
 
 def _fuel_level(level: str, field: str) -> Callable[[HearthData], Any]:
@@ -486,6 +490,7 @@ SENSORS: tuple[HearthSensorDescription, ...] = (
         state_class=SensorStateClass.TOTAL,
         suggested_display_precision=2,
         currency=True,
+        daily=True,
         value_fn=_status("fuel_cost_today"),
     ),
     # Today's fuel by power level (Hearth firmware 1.64): litres and cost at starting, low, middle and high.
@@ -512,6 +517,7 @@ SENSORS: tuple[HearthSensorDescription, ...] = (
             currency=True,
             value_fn=_fuel_level(level, "cost"),
             fuel_day=True,
+            daily=True,
         )
         for level in FUEL_LEVELS
     ],
@@ -842,6 +848,43 @@ class HearthSensor(HearthEntity, SensorEntity):
     def __init__(self, coordinator: HearthCoordinator, description: HearthSensorDescription) -> None:
         super().__init__(coordinator, description.key)
         self.entity_description = description
+        # daily totals: the value last seen, and the start of the day it last went back to zero
+        self._day_value: float | None = None
+        self._day_reset: datetime | None = None
+
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        if self.entity_description.daily:
+            self._follow_day()
+        super()._handle_coordinator_update()
+
+    def _follow_day(self) -> None:
+        """A daily total that falls has started a new day (the box's day): it resets at the start of today.
+
+        A fall later the same day (a lower price backdated) keeps today's start, so the statistics take it as a
+        drop, as they should.
+        """
+        value = self.entity_description.value_fn(self.coordinator.data)
+        if not isinstance(value, int | float):
+            return
+        if self._day_reset is None or (self._day_value is not None and value < self._day_value):
+            self._day_reset = dt_util.start_of_local_day()
+        self._day_value = value
+
+    @property
+    def last_reset(self) -> datetime | None:
+        """When a daily total started counting: the fuel log's own date, or the day the box's figure last fell."""
+        if not self.entity_description.daily:
+            return None
+        if self.entity_description.fuel_day:
+            day = (self.coordinator.data.fuel_day or {}).get("date")
+            try:
+                return dt_util.start_of_local_day(date.fromisoformat(day))
+            except (TypeError, ValueError):
+                return None
+        if self._day_reset is None:
+            self._follow_day()
+        return self._day_reset
 
     @property
     def native_value(self) -> Any:

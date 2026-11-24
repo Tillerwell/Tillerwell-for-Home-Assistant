@@ -19,7 +19,15 @@ class HearthConnectionError(HearthError):
 
 
 class HearthAuthError(HearthError):
-    """The box has a web password set, which this integration does not support."""
+    """The box wants a password or a signature, which this integration does not support.
+
+    `local_api_off` is set when the owner switched the box's old unsigned API off in the app (`auth_required`, API
+    spec §3); otherwise the box has a web password set.
+    """
+
+    def __init__(self, message: str, local_api_off: bool = False) -> None:
+        super().__init__(message)
+        self.local_api_off = local_api_off
 
 
 class HearthRequestError(HearthError):
@@ -67,6 +75,16 @@ class HearthClient:
                     timeout=REQUEST_TIMEOUT,
                 ) as resp:
                     if resp.status == 401:
+                        try:
+                            data = await resp.json(content_type=None)
+                        except (aiohttp.ContentTypeError, ValueError):
+                            data = None
+                        if isinstance(data, dict) and data.get("error") == "auth_required":
+                            raise HearthAuthError(
+                                "The box only lets in the people on its list "
+                                "(Sharing, 'Only people on this list' in the Tillerwell app)",
+                                local_api_off=True,
+                            )
                         raise HearthAuthError("The box has a web password set, which is not supported")
                     if resp.status == 400:
                         try:

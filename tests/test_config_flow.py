@@ -83,6 +83,17 @@ async def test_manual_box_with_web_password_is_refused(
     assert result["errors"] == {"base": "web_password_set"}
 
 
+async def test_manual_box_with_only_listed_people_is_refused(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    """The old unsigned API switched off in the app answers 401 auth_required: not a web password."""
+    aioclient_mock.get(f"{BASE}/api/info", status=401, json={"error": "auth_required"})
+    with patch(DISCOVER, return_value=[]):
+        result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": SOURCE_USER})
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], {"host": HOST})
+    assert result["errors"] == {"base": "local_api_off"}
+
+
 async def test_not_a_hearth_box(hass: HomeAssistant, aioclient_mock: AiohttpClientMocker) -> None:
     aioclient_mock.get(f"{BASE}/api/info", json={"hello": "world"})
     with patch(DISCOVER, return_value=[]):

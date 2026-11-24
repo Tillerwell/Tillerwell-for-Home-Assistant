@@ -88,8 +88,8 @@ class TillerwellConfigFlow(ConfigFlow, domain=DOMAIN):
             host = user_input[CONF_HOST].strip()
             try:
                 info = await self._async_fetch_info(host)
-            except HearthAuthError:
-                errors["base"] = "web_password_set"
+            except HearthAuthError as err:
+                errors["base"] = "local_api_off" if err.local_api_off else "web_password_set"
             except HearthError:
                 errors["base"] = "cannot_connect"
             else:
@@ -112,8 +112,8 @@ class TillerwellConfigFlow(ConfigFlow, domain=DOMAIN):
         host = next((str(ip) for ip in addresses if ip.version == 4 and not ip.is_link_local), discovery_info.host)
         try:
             info = await self._async_fetch_info(host)
-        except HearthAuthError:
-            return self.async_abort(reason="web_password_set")
+        except HearthAuthError as err:
+            return self.async_abort(reason="local_api_off" if err.local_api_off else "web_password_set")
         except HearthError:
             return self.async_abort(reason="cannot_connect")
         self._host = host
@@ -144,8 +144,8 @@ class TillerwellConfigFlow(ConfigFlow, domain=DOMAIN):
             host = user_input[CONF_HOST].strip()
             try:
                 info = await self._async_fetch_info(host)
-            except HearthAuthError:
-                errors["base"] = "web_password_set"
+            except HearthAuthError as err:
+                errors["base"] = "local_api_off" if err.local_api_off else "web_password_set"
             except HearthError:
                 errors["base"] = "cannot_connect"
             else:

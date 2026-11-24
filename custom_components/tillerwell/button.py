@@ -48,14 +48,10 @@ async def _start_pump(coordinator: HearthCoordinator) -> None:
 
 async def _stop(coordinator: HearthCoordinator) -> None:
     """Stop whatever is running. The heater can still read idle while it primes or tests its fan, so the stop always
-    goes out (the box takes it in any state); Auto goes off first or it would start the heater again."""
-
-    async def run() -> None:
-        if coordinator.data.status.get("auto_enabled"):
-            await coordinator.async_command("auto", enabled=False)
-        await coordinator.async_command("stop")
-
-    await coordinator.async_act(ACTION_STOP, run)
+    goes out (the box takes it in any state); Auto goes off first or it would start the heater again. Inside Heater
+    Care's minimum run the thermostat still goes off and the box stops the run once it is up, as for thermostat off,
+    rather than reporting the whole press as refused."""
+    await coordinator.async_act(ACTION_STOP, lambda: coordinator.async_stop(always=True))
 
 
 async def _prime_fuel(coordinator: HearthCoordinator) -> None:

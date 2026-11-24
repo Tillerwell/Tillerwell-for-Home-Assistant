@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from datetime import date
 from pathlib import Path
 
 import pytest
@@ -850,6 +851,57 @@ async def test_heater_care_lock_refusal_shows_the_reason(
     last = hass.states.get("sensor.hearth_a1b2c3_last_start_or_stop")
     assert last.state.startswith("Not stopped: Heater Care: the run has 17 more min of its minimum run")
     assert last.attributes["result"] == "refused" and last.attributes["heater_care"] == "min_run"
+
+
+async def test_heater_care_stop_button_inside_minimum_run_waits(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, entry: MockConfigEntry
+) -> None:
+    """The Stop button on a thermostat run inside its minimum run: Auto goes off and the box stops the run when the
+    minimum is up, so it is not reported as refused (the same as thermostat off)."""
+    heater_care_box(aioclient_mock, REFUSED, state="running", burner_active=True, auto_enabled=True)
+    await setup(hass, entry)
+    await hass.services.async_call(BUTTON, SERVICE_PRESS, {ATTR_ENTITY_ID: "button.hearth_a1b2c3_stop"}, blocking=True)
+    assert sent(aioclient_mock) == [
+        {"cmd": "auto", "enabled": False, "source": "home_assistant"},
+        {"cmd": "stop", "source": "home_assistant"},
+    ]
+    last = hass.states.get("sensor.hearth_a1b2c3_last_start_or_stop")
+    assert last.attributes["result"] == "waiting"
+    assert last.state.startswith("Thermostat off. The run has 8 more min of its 30-minute minimum")
+
+
+async def test_heater_care_stop_button_refused_preheat(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, entry: MockConfigEntry
+) -> None:
+    """A preheat inside its minimum run (no thermostat to switch off): the Stop button says why it was refused."""
+    heater_care_box(aioclient_mock, REFUSED, state="running", burner_active=True)
+    await setup(hass, entry)
+    with pytest.raises(HomeAssistantError, match="17 more min of its minimum run"):
+        await hass.services.async_call(
+            BUTTON, SERVICE_PRESS, {ATTR_ENTITY_ID: "button.hearth_a1b2c3_stop"}, blocking=True
+        )
+    last = hass.states.get("sensor.hearth_a1b2c3_last_start_or_stop")
+    assert last.attributes["result"] == "refused" and last.attributes["heater_care"] == "min_run"
+
+
+async def test_daily_cost_resets_for_statistics(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, entry: MockConfigEntry
+) -> None:
+    """Today's cost is a "total" that goes back to zero each day: it carries last_reset, moved on only when the box's
+    figure falls, so long-term statistics do not take the midnight drop off the sum."""
+    from homeassistant.util import dt as dt_util
+
+    serve(aioclient_mock, BASE, {**INFO, "version": "1.0064"})
+    aioclient_mock.get(f"{BASE}/api/fuel/day", json=FUEL_DAY)
+    await setup(hass, entry)
+    today = dt_util.start_of_local_day().isoformat()
+    cost = hass.states.get("sensor.hearth_a1b2c3_fuel_cost_today_estimated")
+    assert cost.attributes["state_class"] == "total" and cost.attributes["last_reset"] == today
+    level = hass.states.get("sensor.hearth_a1b2c3_fuel_cost_today_middle_estimated")
+    assert level.attributes["last_reset"] == dt_util.start_of_local_day(date(2026, 11, 14)).isoformat()
+    # the lifetime total and litres (total_increasing) carry none
+    assert "last_reset" not in hass.states.get("sensor.hearth_a1b2c3_fuel_cost_estimated").attributes
+    assert "last_reset" not in hass.states.get("sensor.hearth_a1b2c3_fuel_used_today_estimated").attributes
 
 
 async def test_last_start_or_stop_explains_what_happens(

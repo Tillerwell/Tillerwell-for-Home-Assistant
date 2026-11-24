@@ -32,12 +32,14 @@
     },
     "error": {
       "cannot_connect": "Could not reach a Hearth box at that address. Check it is powered and on the same network as Home Assistant.",
-      "web_password_set": "This box has a web password set, which is not supported. Remove the password on the box and try again."
+      "web_password_set": "This box has a web password set, which is not supported. Remove the password on the box and try again.",
+      "local_api_off": "This box only lets in the people on its list. In the Tillerwell app, open the heater's Sharing page and turn off \"Only people on this list\", then try again."
     },
     "abort": {
       "already_configured": "This box is already set up.",
       "cannot_connect": "Found a box but could not talk to it.",
       "web_password_set": "This box has a web password set, which is not supported. Remove the password on the box and try again.",
+      "local_api_off": "This box only lets in the people on its list. In the Tillerwell app, open the heater's Sharing page and turn off \"Only people on this list\", then try again.",
       "wrong_device": "That address belongs to a different box.",
       "reconfigure_successful": "The box's address was updated."
     }
