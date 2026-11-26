@@ -25,6 +25,23 @@ def test_thermostat_on_while_resting() -> None:
     assert "resting for another 14 s" in explain_thermostat_on(after)
 
 
+def test_thermostat_on_with_a_fault_retry() -> None:
+    after = {
+        "state": "idle",
+        "effective_temp": 19.7,
+        "auto_start_at": 20.2,
+        "auto_high": 20.8,
+        "fault_name": "Flame break during running",
+        "thermo": {"fault_retry": {"in_s": 240, "attempt": 1, "of": 3, "gave_up": False}},
+    }
+    text = explain_thermostat_on(after)
+    assert "reported a fault (Flame break during running)" in text and "tries again in 4 min" in text
+    after["thermo"]["fault_retry"] = {"in_s": None, "attempt": None, "of": 3, "gave_up": True}
+    assert "stopped trying" in explain_thermostat_on(after)
+    after["thermo"]["fault_retry"] = None
+    assert "starts now" in explain_thermostat_on(after)
+
+
 def test_thermostat_on_room_warm_enough() -> None:
     after = {"state": "idle", "effective_temp": 20.4, "auto_start_at": 19.5, "auto_high": 21}
     assert explain_thermostat_on(after).startswith("Thermostat on. The room is 20.4°, above the 19.5° start point")

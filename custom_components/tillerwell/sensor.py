@@ -190,6 +190,14 @@ def _care_temperature(key: str, **kwargs: Any) -> HearthSensorDescription:
     )
 
 
+def _fault_retry_minutes(data: HearthData) -> Any:
+    """Minutes until the thermostat tries a start again after a heater fault (firmware 1.97), else None."""
+    thermo = data.status.get("thermo")
+    retry = thermo.get("fault_retry") if isinstance(thermo, dict) else None
+    seconds = retry.get("in_s") if isinstance(retry, dict) else None
+    return round(seconds / 60, 1) if isinstance(seconds, (int, float)) else None
+
+
 def _care_minutes(key: str, **kwargs: Any) -> HearthSensorDescription:
     return HearthSensorDescription(
         key=f"heater_care_{key}",
@@ -390,6 +398,16 @@ SENSORS: tuple[HearthSensorDescription, ...] = (
     _care_temperature("ceiling", entity_category=EntityCategory.DIAGNOSTIC, entity_registry_enabled_default=False),
     _care_minutes("min_run_left"),
     _care_minutes("min_off_left"),
+    HearthSensorDescription(
+        # Hearth 1.97: a heater fault is holding the thermostat's start back; unknown when nothing is
+        key="heater_care_fault_retry",
+        translation_key="heater_care_fault_retry",
+        device_class=SensorDeviceClass.DURATION,
+        native_unit_of_measurement=UnitOfTime.MINUTES,
+        suggested_display_precision=0,
+        required_field="thermo",
+        value_fn=_fault_retry_minutes,
+    ),
     _care_minutes("warmup_typical", entity_category=EntityCategory.DIAGNOSTIC, entity_registry_enabled_default=False),
     _care_minutes("cool_typical", entity_category=EntityCategory.DIAGNOSTIC, entity_registry_enabled_default=False),
     HearthSensorDescription(

@@ -44,6 +44,7 @@
       "heater_care_work_low": {"default": "mdi:thermometer-chevron-up"},
       "heater_care_min_run_left": {"default": "mdi:timer-lock-outline"},
       "heater_care_min_off_left": {"default": "mdi:timer-pause-outline"},
+      "heater_care_fault_retry": {"default": "mdi:timer-alert-outline"},
       "heater_care_rise_rate": {"default": "mdi:trending-up"},
       "heater_care_holding": {"default": "mdi:hand-back-left-outline"},
       "heater_care_learned_width": {"default": "mdi:arrow-expand-vertical"},

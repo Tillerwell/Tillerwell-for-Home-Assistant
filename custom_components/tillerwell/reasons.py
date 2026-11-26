@@ -77,6 +77,20 @@ def explain_thermostat_on(after: dict[str, Any]) -> str:
         return f"Thermostat on. The heater is running and stops when the room reaches {_deg(top)}."
     if not isinstance(room, (int, float)) or not isinstance(start_at, (int, float)):
         return f"Thermostat on. It keeps the room at {_deg(top)}; there is no room reading yet, so it waits for one."
+    retry = thermo.get("fault_retry")
+    if isinstance(retry, dict) and (retry.get("gave_up") or isinstance(retry.get("in_s"), (int, float))):
+        # Hearth 1.97: a heater fault is holding the start back
+        name = after.get("fault_name")
+        what = f"the heater reported a fault ({name})" if name else "the heater reported a fault"
+        if retry.get("gave_up"):
+            return (
+                f"Thermostat on, but {what} and failed to start 3 times, so it has stopped trying "
+                "until the fault clears."
+            )
+        return (
+            f"Thermostat on, but {what}. It tries again in {_rest(retry['in_s']) or '1 s'}, "
+            f"and stops when the room reaches {_deg(top)}."
+        )
     if room <= start_at:
         if rest:
             return (

@@ -115,6 +115,7 @@
       "heater_care_ceiling": {"name": "Heater Care ceiling"},
       "heater_care_min_run_left": {"name": "Minimum run left"},
       "heater_care_min_off_left": {"name": "Minimum rest left"},
+      "heater_care_fault_retry": {"name": "Fault retry in"},
       "heater_care_warmup_typical": {"name": "Typical warm-up"},
       "heater_care_cool_typical": {"name": "Typical cool-down"},
       "heater_care_rise_rate": {"name": "Heating speed"},
